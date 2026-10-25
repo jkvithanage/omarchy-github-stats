@@ -52,7 +52,6 @@ jobs:
           fi
 
       - name: Check plugin against Omarchy 4.0.6
-        if: hashFiles('manifest.json') != ''
         env:
           OMARCHY_PATH: ${{ runner.temp }}/omarchy
         run: |
