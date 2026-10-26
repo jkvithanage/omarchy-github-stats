@@ -17,6 +17,7 @@ function finishCalendar(service, request, result, now) {
     let next = service.complete(request.id, result, now);
     if (next && next.kind === 'repositories') next = service.complete(next.id, repositories([], false, null, 0, service.identity), now);
     if (next && next.kind === 'prs') next = service.complete(next.id, workResponse([], [], [], service.identity), now);
+    if (next && next.kind === 'issues') next = service.complete(next.id, workResponse([], [], [], service.identity), now);
     return next;
 }
 function calendar(identity = alice, days, now = instant) {
@@ -386,7 +387,11 @@ function startPrs(service, now = instant) {
     return service.complete(request.id, repositories(), now);
 }
 function finishPrs(service, now = instant) {
-    return service.active && service.active.kind === 'prs' ? service.complete(service.active.id, workResponse(), now) : null;
+    if (service.active && service.active.kind === 'prs') service.complete(service.active.id, workResponse(), now);
+    return finishIssues(service, now);
+}
+function finishIssues(service, now = instant) {
+    return service.active && service.active.kind === 'issues' ? service.complete(service.active.id, workResponse(), now) : null;
 }
 
 test('PR previews use disjoint open searches including team requests and authoritative overlap badges', () => {
@@ -401,6 +406,7 @@ test('PR previews use disjoint open searches including team requests and authori
         repository: { nameWithOwner: 'owner/repo', isPrivate: i === 0 }
     })).reverse();
     service.complete(request.id, workResponse(authored, [pullRequest(20, 'bob'), pullRequest(21, 'carol')], ['PR_1'], alice, 1200, 2), instant);
+    finishIssues(service);
     const groups = service.prs.data.groups;
     assert.equal(groups[0].total, 1200);
     assert.equal(groups[0].rows.length, 10);
@@ -426,6 +432,7 @@ test('PR states distinguish loading, empty, failed and stale while protecting ac
     let request = startPrs(service);
     assert.equal(service.prs.data, null, 'pending work must not appear empty');
     service.complete(request.id, workResponse(), instant);
+    finishIssues(service);
     assert.equal(service.prs.data.groups[0].total, 0);
     assert.equal(service.prs.data.groups[0].rows.length, 0);
     const old = service.prs.data;
@@ -569,4 +576,67 @@ test('interrupted language pagination cannot publish partial bytes or stars', ()
     assert.equal(service.repositories.lastSuccess, instant);
     assert.equal(service.repositories.errorKind, 'network');
     assert.equal(service.active, null);
+});
+
+function issue(number, author = 'alice', options = {}) {
+    return pullRequest(number, author, { __typename: 'Issue', id: 'I_' + number,
+        url: 'https://github.com/owner/repo/issues/' + number, ...options });
+}
+function startIssues(service, now = instant) {
+    const request = startPrs(service, now);
+    return service.complete(request.id, workResponse(), now);
+}
+test('issue previews exclude PRs, preserve disjoint assignment totals and retain overlap badges', () => {
+    const service = new model.Service(instant);
+    const request = startIssues(service);
+    assert.ok(request && request.kind === 'issues');
+    assert.ok(request.command.includes('authored=is:issue is:open author:alice sort:updated-desc'));
+    assert.ok(request.command.includes('secondary=is:issue is:open assignee:alice -author:alice sort:updated-desc'));
+    const authored = Array.from({ length: 10 }, (_, i) => issue(i + 1, 'alice', {
+        updatedAt: new Date(instant - i * 1000).toISOString(), repository: { nameWithOwner: 'owner/repo', isPrivate: true }
+    })).reverse();
+    service.complete(request.id, workResponse(authored, [issue(20, 'bob')], ['I_1'], alice, 30, 1), instant);
+    const groups = service.issues.data.groups;
+    assert.equal(groups[0].label, 'Authored issues');
+    assert.equal(groups[0].total, 30);
+    assert.equal(groups[0].rows.length, 10);
+    assert.equal(groups[0].rows[0].number, 1);
+    assert.equal(groups[0].rows[0].role, 'Authored · Assigned');
+    assert.equal(groups[0].rows[0].isPrivate, true);
+    assert.equal(groups[0].rows[0].isDraft, false);
+    assert.equal(groups[1].label, 'Assignments from other authors');
+    assert.equal(groups[1].rows[0].role, 'Assigned');
+    assert.match(decodeURIComponent(groups[1].url), /is:issue is:open assignee:alice -author:alice/);
+    assert.equal(service.active, null);
+});
+
+test('issue states reject PRs and unsafe links, preserve stale results and isolate accounts', () => {
+    const service = new model.Service(instant);
+    assert.equal(service.issues.data, null);
+    let request = startIssues(service);
+    assert.equal(service.issues.data, null);
+    service.complete(request.id, workResponse(), instant);
+    const empty = service.issues.data;
+    assert.equal(empty.groups[0].total, 0);
+    for (const result of [
+        { code: -1, failure: 'timeout' },
+        workResponse([pullRequest(1)]),
+        workResponse([issue(1, 'alice', { url: 'https://evil.example/issues/1' })]),
+        workResponse([], [issue(2, 'alice')]),
+        workResponse([issue(1)], [], [], alice, 9, 0)
+    ]) {
+        request = startIssues(service, instant + 1000);
+        service.complete(request.id, result, instant + 2000);
+        assert.equal(service.issues.data, empty);
+        assert.equal(service.issues.lastSuccess, instant);
+        assert.equal(service.issues.stale, true);
+        assert.equal(service.prs.stale, false);
+        assert.equal(service.repositories.stale, false);
+        assert.equal(service.stale, false);
+    }
+    request = startIssues(service, instant + 3000);
+    service.complete(request.id, { code: 1, stderr: 'gh auth login' }, instant + 3000);
+    assert.equal(service.issues.data, null);
+    assert.equal(service.prs.data, null);
+    assert.equal(service.identity, null);
 });
