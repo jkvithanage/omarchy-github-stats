@@ -220,15 +220,15 @@ BarWidget {
                     onLinkFocused: function(link) { root.revealPopupItem(link) }
                 }
 
-                Text {
+                WorkList {
+                    objectName: "issue-work-list"
                     visible: root.tabIndex === 2
                     width: parent.width
-                    text: "Issue previews are not available yet."
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                    color: Commons.Color.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.body
+                    section: root.service ? root.service.issues : null
+                    refreshing: root.service ? root.service.refreshing : false
+                    sectionName: "Issues"
+                    onOpenUrl: function(url) { Qt.openUrlExternally(url) }
+                    onLinkFocused: function(link) { root.revealPopupItem(link) }
                 }
 
                 Column {

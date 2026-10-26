@@ -1,6 +1,6 @@
 # Omarchy GitHub Stats — v1 specification
 
-Status: agreed design; the bar, shared service, popup foundation, all three Stats periods, repository snapshots, and PR previews are implemented. Issue previews are pending.
+Status: agreed design; v1 features are implemented. Installation verification and final documentation remain tracked in issue #7.
 
 ## Purpose and boundaries
 

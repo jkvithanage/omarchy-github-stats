@@ -23,6 +23,15 @@ ShellRoot {
         sectionName: "PRs"
         onOpenUrl: function(url) { root.openedUrl = url }
     }
+    Plugin.WorkList {
+        id: issueLinkProbe
+        visible: false
+        width: 300
+        section: service.issues
+        refreshing: service.refreshing
+        sectionName: "Issues"
+        onOpenUrl: function(url) { root.openedUrl = url }
+    }
     QtObject {
         id: facade
         function serviceFor(id) { return id === "omarchy-github-stats" ? service : null }
@@ -180,6 +189,16 @@ ShellRoot {
                 textItem(linkProbe, "View all").clicked()
                 if (decodeURIComponent(root.openedUrl).indexOf("is:open author:fixture") < 0)
                     throw new Error("View all browser filters mismatch")
+                first.tabIndex = 2
+                var issueList = namedItem(popup.contentItem[0], "issue-work-list")
+                if (!issueList || !issueList.visible || !textItem(issueList, "Fixture Issue 1")
+                    || !textItem(issueList, "Assignments from other authors · 1 total · showing 1"))
+                    throw new Error("Issue work previews missing")
+                textItem(issueLinkProbe, "Open #1").clicked()
+                if (root.openedUrl !== "https://github.com/fixture/repo/issues/1") throw new Error("Issue URL mismatch")
+                textItem(issueLinkProbe, "View all").clicked()
+                if (decodeURIComponent(root.openedUrl).indexOf("is:issue is:open author:fixture") < 0)
+                    throw new Error("Issue View all filters mismatch")
                 first.tabIndex = 0
                 if (first.periodIndex !== 1) throw new Error("Tab switch lost selected period")
                 textItem(popup.contentItem[0], "12 months").clicked()
