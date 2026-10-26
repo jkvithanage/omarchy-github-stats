@@ -6,7 +6,7 @@ The bar shows a GitHub icon and today's contribution count. Its popup has three 
 
 ## Project status
 
-The bar shows today's UTC contribution count. Stats shows the last seven UTC dates, themed contribution levels, visible counts, hover/keyboard date details, and separate contribution, commit contribution, authored PR, and authored issue summaries. Each refresh fetches the annual calendar and all three periods' summaries together. Incomplete responses preserve the last complete snapshot as stale. Thirty-day and annual views, repository snapshots, and work previews are not implemented yet; the popup labels them as unavailable.
+The bar shows today's UTC contribution count. Stats offers 7 days, 30 days, and 12 months, with Sunday-first calendar layouts, themed contribution levels, hover/keyboard date details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Switching periods uses the same cached snapshot; reopening the popup resets to 7 days. Incomplete responses preserve the last complete snapshot as stale. Repository snapshots and work previews are not implemented yet; the popup labels them as unavailable.
 
 ## Installation
 
@@ -40,7 +40,7 @@ The plugin will read GitHub data and open browser links. Credentials remain mana
 
 ## Verification
 
-Run `make check` for the service fixtures, a Qt JavaScript runtime check, QML lint, and the installed Omarchy manifest validator. Development checks use Node.js, Python 3, Make, and Qt 6 tooling; the installed plugin only needs Omarchy/Quickshell and `gh`. QML lint may report dynamic host-property and QVariant environment-map warnings; the native smoke test verifies those bindings at runtime.
+Run `make check` for the service fixtures, Qt model and heatmap keyboard tests, QML lint, and the installed Omarchy manifest validator. The offscreen heatmap tests substitute only the host theme boundary; native smoke uses the installed theme components. Development checks use Node.js, Python 3, Make, and Qt 6 tooling; the installed plugin only needs Omarchy/Quickshell and `gh`. QML lint may report dynamic host-property and QVariant environment-map warnings; the native smoke test verifies those bindings at runtime.
 
 Run `make smoke` from a Hyprland session for an isolated native widget/popup test with two consumers and fixture `gh` responses, including a real thirty-second process timeout. It checks focus targets, Escape, popup reset, constrained scrolling, theme bindings, and the native dismissal callback. This briefly opens a test bar and popup and leaves the installed bar configuration unchanged. Fixture responses contain no account data and make no network calls.
 
