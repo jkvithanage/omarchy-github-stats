@@ -10,9 +10,19 @@ ShellRoot {
     property int stage: 0
     property var keyboardTester: null
     property var settledState: null
+    property string openedUrl: ""
     readonly property string mode: Quickshell.env("STATS_FIXTURE") || "success"
 
     Plugin.Service { id: service }
+    Plugin.WorkList {
+        id: linkProbe
+        visible: false
+        width: 300
+        section: service.prs
+        refreshing: service.refreshing
+        sectionName: "PRs"
+        onOpenUrl: function(url) { root.openedUrl = url }
+    }
     QtObject {
         id: facade
         function serviceFor(id) { return id === "omarchy-github-stats" ? service : null }
@@ -158,6 +168,18 @@ ShellRoot {
                 if (!monthChart || monthChart.layout.columns !== 7 || monthChart.layout.rows < 5)
                     throw new Error("Thirty-day calendar layout missing")
                 first.tabIndex = 1
+                var prList = namedItem(popup.contentItem[0], "pr-work-list")
+                if (!prList || !prList.visible || !textItem(prList, "Fixture PR 1")
+                    || !textItem(prList, "Authored PRs · 1 total · showing 1")
+                    || !textItem(prList, "Review requests from other authors · 1 total · showing 1"))
+                    throw new Error("PR work previews missing")
+                var itemLink = textItem(linkProbe, "Open #1")
+                if (!itemLink || !itemLink.focusable) throw new Error("Keyboard item link missing")
+                itemLink.clicked()
+                if (root.openedUrl !== "https://github.com/fixture/repo/pull/1") throw new Error("Item browser URL mismatch")
+                textItem(linkProbe, "View all").clicked()
+                if (decodeURIComponent(root.openedUrl).indexOf("is:open author:fixture") < 0)
+                    throw new Error("View all browser filters mismatch")
                 first.tabIndex = 0
                 if (first.periodIndex !== 1) throw new Error("Tab switch lost selected period")
                 textItem(popup.contentItem[0], "12 months").clicked()
@@ -196,6 +218,9 @@ ShellRoot {
                 if (!tooltip || !tooltip.visible || tooltip.width > popup.width
                     || tooltip.text.indexOf(first.selectedStats.days[0].date) < 0)
                     throw new Error("Constrained tile tooltip details missing")
+                first.tabIndex = 1
+                textItem(namedItem(scroll, "pr-work-list"), "Open #2").forceActiveFocus()
+                if (scroll.contentItem.contentY <= 0) throw new Error("Focused work link was not scrolled into view")
                 root.keyboardTester.keyClick(Qt.Key_Escape, Qt.NoModifier, 0)
                 root.stage = 7
                 return

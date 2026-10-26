@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix="github-stats-native-") as temporary:
     stage = Path(temporary)
     runtime = stage / "runtime"
     runtime.mkdir(mode=0o700)
-    for name in ("Widget.qml", "Heatmap.qml", "Service.qml", "ServiceModel.js"):
+    for name in ("Widget.qml", "Heatmap.qml", "WorkList.qml", "Service.qml", "ServiceModel.js"):
         shutil.copyfile(ROOT / name, stage / name)
     for name in ("Ui", "Commons"):
         (stage / name).symlink_to(SHELL / name, target_is_directory=True)
