@@ -184,6 +184,15 @@ ShellRoot {
                     throw new Error("Constrained popup does not scroll")
                 var title = textItem(scroll, "GitHub Stats · fixture")
                 if (!title || String(title.color) !== "#ffddaa") throw new Error("Theme binding did not update")
+                var upperTile = namedItem(scroll, "contribution-" + first.selectedStats.days[0].date)
+                upperTile.forceActiveFocus()
+                var tooltip = null
+                for (var child = 0; child < upperTile.data.length; child++) {
+                    if (upperTile.data[child].objectName === "contribution-tooltip") tooltip = upperTile.data[child]
+                }
+                if (!tooltip || !tooltip.visible || tooltip.width > popup.width
+                    || tooltip.text.indexOf(first.selectedStats.days[0].date) < 0)
+                    throw new Error("Constrained tile tooltip details missing")
                 root.keyboardTester.keyClick(Qt.Key_Escape, Qt.NoModifier, 0)
                 root.stage = 7
                 return

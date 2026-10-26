@@ -53,6 +53,11 @@ Item {
             tryCompare(findChild(chart, "contribution-2026-10-17"), "activeFocus", true)
             keyClick(Qt.Key_Home) // Unhandled keys must leave focus intact.
             verify(findChild(chart, "contribution-2026-10-17").activeFocus)
+            var tooltip = findChild(findChild(chart, "contribution-2026-10-17"), "contribution-tooltip")
+            verify(tooltip !== null, 'Focused tiles need details outside the clipped chart')
+            tryCompare(tooltip, "visible", true)
+            compare(tooltip.text, "2026-10-17: 0 contributions (UTC)")
+            verify(tooltip.width <= chart.width)
         }
     }
 }

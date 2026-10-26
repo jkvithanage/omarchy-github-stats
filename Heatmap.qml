@@ -112,8 +112,28 @@ Item {
                     Keys.onUpPressed: root.focusDate(index, root.annual ? -1 : root.period === "month" ? -7 : -1)
                     Keys.onDownPressed: root.focusDate(index, root.annual ? 1 : root.period === "month" ? 7 : 1)
                     HoverHandler {
+                        id: hover
                         enabled: tile.modelData !== null
                         onHoveredChanged: if (hovered && tile.modelData) root.daySelected(tile.modelData.date)
+                    }
+                    Controls.ToolTip {
+                        id: tooltip
+                        objectName: "contribution-tooltip"
+                        visible: tile.modelData !== null && (tile.activeFocus || hover.hovered)
+                        text: tile.Accessible.name
+                        width: Math.min(implicitWidth, Math.max(120, root.width))
+                        contentItem: Text {
+                            text: tooltip.text
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            color: Commons.Color.tooltip.text
+                            font.family: Style.font.family
+                            font.pixelSize: Style.font.caption
+                        }
+                        background: Rectangle {
+                            color: Commons.Color.tooltip.background
+                            border.color: Commons.Color.tooltip.border
+                        }
                     }
                     Rectangle {
                         visible: tile.modelData !== null
