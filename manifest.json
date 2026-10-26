@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy-github-stats",
+  "name": "Omarchy GitHub Stats",
+  "version": "0.1.0",
+  "author": "jkvithanage",
+  "description": "Today's GitHub contributions and personal activity in the native bar.",
+  "kinds": ["bar-widget", "service"],
+  "entryPoints": {
+    "barWidget": "Widget.qml",
+    "service": "Service.qml"
+  },
+  "barWidget": {
+    "displayName": "GitHub Stats",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
