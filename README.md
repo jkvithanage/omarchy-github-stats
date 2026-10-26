@@ -6,7 +6,7 @@ The bar shows a GitHub icon and today's contribution count. Its popup has three 
 
 ## Project status
 
-Issue #1 implements today's UTC contribution count, a shared account-data service, and the native popup with Stats, PRs, and Issues tabs. Period charts, summaries, repository snapshots, and work previews are not implemented yet; the popup labels them as unavailable.
+The bar shows today's UTC contribution count. Stats shows the last seven UTC dates, themed contribution levels, visible counts, hover/keyboard date details, and separate contribution, commit contribution, authored PR, and authored issue summaries. Each refresh fetches the annual calendar and all three periods' summaries together. Incomplete responses preserve the last complete snapshot as stale. Thirty-day and annual views, repository snapshots, and work previews are not implemented yet; the popup labels them as unavailable.
 
 ## Installation
 

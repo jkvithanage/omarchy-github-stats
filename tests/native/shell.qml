@@ -61,6 +61,15 @@ ShellRoot {
         return null
     }
 
+    function namedItem(item, name) {
+        if (item.objectName === name) return item
+        for (var i = 0; i < item.children.length; i++) {
+            var match = namedItem(item.children[i], name)
+            if (match) return match
+        }
+        return null
+    }
+
     function check() {
         try {
             if (root.settledState) {
@@ -108,13 +117,30 @@ ShellRoot {
                 // The popup must expose native tab-focus targets and an
                 // Escape shortcut independent of child event consumption.
                 popup._backingWindow.requestActivate()
-                root.keyboardTester = Qt.createQmlObject('import QtTest; TestEvent {}', popup._backingWindow)
+                root.keyboardTester = Qt.createQmlObject('import QtTest; TestEvent {}', popup.contentItem[0])
                 root.stage = 3
                 return
             }
             if (root.stage === 3) {
                 smokeTimer.stop()
+                var scrollContent = popup.contentItem[0]
+                if (!textItem(scrollContent, "7 days") || !textItem(scrollContent, "Contributions: 8")
+                    || !textItem(scrollContent, "Commit contributions: 3") || !textItem(scrollContent, "PRs authored: 2")
+                    || !textItem(scrollContent, "Issues authored: 1")) throw new Error("Seven-day Stats missing")
+                var date = service.stats.periods.week.days[0].date
+                var tile = namedItem(scrollContent, "contribution-" + date)
+                if (!tile || !tile.activeFocusOnTab || tile.Accessible.name.indexOf(date) < 0)
+                    throw new Error("Accessible contribution tile missing")
+                tile.forceActiveFocus()
+                if (!tile.activeFocus) throw new Error("Tile did not receive native focus")
+                root.keyboardTester.keyClick(Qt.Key_Right, Qt.NoModifier, 0)
+                var nextTile = namedItem(scrollContent, "contribution-" + service.stats.periods.week.days[1].date)
+                if (!nextTile.activeFocus) throw new Error("Tile arrow navigation failed; first focused=" + tile.activeFocus + "; next=" + nextTile.objectName)
+                var details = namedItem(scrollContent, "contribution-details")
+                if (!details || details.text.indexOf(service.stats.periods.week.days[1].date) < 0)
+                    throw new Error("Focus details missing")
                 var stats = textItem(popup.contentItem[0], "Stats")
+                stats.forceActiveFocus()
                 if (!stats.focusable || !stats.activeFocusOnTab || !stats.activeFocus)
                     throw new Error("Native tab focus is unavailable")
                 root.keyboardTester.keyClick(Qt.Key_Escape, Qt.NoModifier, 0)

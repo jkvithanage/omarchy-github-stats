@@ -1,10 +1,13 @@
 // In-memory service state. The QML adapter owns processes and the wall clock.
 var refreshInterval = 15 * 60 * 1000;
 var identityQuery = "query { viewer { id login } }";
-var calendarQuery = "query($login: String!, $from: DateTime!, $to: DateTime!) { "
+var summaryFields = "totalCommitContributions totalPullRequestContributions totalIssueContributions ";
+var calendarQuery = "query($login: String!, $from: DateTime!, $weekFrom: DateTime!, $monthFrom: DateTime!, $to: DateTime!) { "
     + "viewer { id login } user(login: $login) { id login "
-    + "contributionsCollection(from: $from, to: $to) { contributionCalendar { "
-    + "weeks { contributionDays { date contributionCount contributionLevel } } } } } }";
+    + "contributionsCollection(from: $from, to: $to) { " + summaryFields + "contributionCalendar { "
+    + "weeks { contributionDays { date contributionCount contributionLevel } } } } "
+    + "week: contributionsCollection(from: $weekFrom, to: $to) { " + summaryFields + "} "
+    + "month: contributionsCollection(from: $monthFrom, to: $to) { " + summaryFields + "} } }";
 
 function utcDate(now) { return new Date(now).toISOString().slice(0, 10); }
 
@@ -14,6 +17,10 @@ function annualStart(now) {
     var month = date.getUTCMonth();
     var day = Math.min(date.getUTCDate(), new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
     return new Date(Date.UTC(year, month, day + 1)).toISOString();
+}
+
+function periodStart(now, days) {
+    return new Date(Date.parse(utcDate(now) + "T00:00:00Z") - (days - 1) * 86400000).toISOString();
 }
 
 function command(query, fields) {
@@ -99,9 +106,40 @@ function calendarDays(user) {
     return days;
 }
 
+function validCount(value) {
+    return typeof value === "number" && isFinite(value) && value >= 0 && Math.floor(value) === value;
+}
+
+function periodStats(calendar, collection, from, to) {
+    if (!collection || !validCount(collection.totalCommitContributions)
+        || !validCount(collection.totalPullRequestContributions) || !validCount(collection.totalIssueContributions)) return null;
+    var days = [];
+    var total = 0;
+    for (var date = Date.parse(from); date <= Date.parse(to); date += 86400000) {
+        var day = calendar[utcDate(date)];
+        if (!day) return null;
+        days.push(day);
+        total += day.contributionCount;
+    }
+    return { from: from, to: to, days: days, contributions: total,
+        commitContributions: collection.totalCommitContributions,
+        prsAuthored: collection.totalPullRequestContributions, issuesAuthored: collection.totalIssueContributions };
+}
+
+function accountStats(calendar, user, at) {
+    var to = new Date(at).toISOString();
+    var periods = {
+        week: periodStats(calendar, user.week, periodStart(at, 7), to),
+        month: periodStats(calendar, user.month, periodStart(at, 30), to),
+        year: periodStats(calendar, user.contributionsCollection, annualStart(at), to)
+    };
+    return periods.week && periods.month && periods.year ? { at: at, periods: periods } : null;
+}
+
 function Service(now) {
     this.identity = null;
     this.calendar = null;
+    this.stats = null;
     this.lastSuccess = 0;
     this.stale = false;
     this.errorKind = "";
@@ -127,6 +165,7 @@ Service.prototype.refresh = function(now) {
 Service.prototype.clearAccount = function() {
     this.identity = null;
     this.calendar = null;
+    this.stats = null;
     this.lastSuccess = 0;
     this.stale = false;
 };
@@ -161,14 +200,19 @@ Service.prototype.complete = function(id, result, now) {
         this.identity = data.viewer;
         this.active = { id: ++this.serial, kind: "calendar", at: request.at,
             identity: this.identity,
-            command: command(calendarQuery, { login: data.viewer.login, from: annualStart(request.at), to: new Date(request.at).toISOString() }) };
+            command: command(calendarQuery, { login: data.viewer.login, from: annualStart(request.at),
+                weekFrom: periodStart(request.at, 7), monthFrom: periodStart(request.at, 30),
+                to: new Date(request.at).toISOString() }) };
         return this.active;
     }
     if (!sameIdentity(request.identity, data.viewer) || !sameIdentity(request.identity, data.user))
         return this.fail("account", now);
     var days = calendarDays(data.user);
     if (days === null) return this.fail("response", now);
+    var stats = accountStats(days, data.user, request.at);
+    if (stats === null) return this.fail("response", now);
     this.calendar = days;
+    this.stats = stats;
     this.lastSuccess = now;
     this.stale = false;
     this.errorKind = "";
