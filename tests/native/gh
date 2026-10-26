@@ -37,4 +37,13 @@ if any("contributionsCollection" in arg for arg in args):
     data["user"] = dict(identity, contributionsCollection=dict(totals, contributionCalendar={
         "weeks": [{"contributionDays": days}]
     }), week=totals, month=totals)
+if any("repositories(first:" in arg for arg in args):
+    second = "cursor=repo-next" in args
+    language, size = ("Python", 40) if second else ("JavaScript", 60)
+    repo = {"id": "R_second" if second else "R_first", "owner": identity, "isFork": False,
+            "stargazerCount": 5 if second else 7, "languages": {"totalCount": 1,
+            "pageInfo": {"hasNextPage": False, "endCursor": None},
+            "edges": [{"size": size, "node": {"name": language}}]}}
+    data["user"] = dict(identity, repositories={"nodes": [repo], "totalCount": 2,
+        "pageInfo": {"hasNextPage": not second, "endCursor": "repo-last" if second else "repo-next"}})
 print("HTTP/2.0 200 OK\nContent-Type: application/json\n\n" + json.dumps({"data": data}))

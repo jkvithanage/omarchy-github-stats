@@ -127,6 +127,9 @@ ShellRoot {
                 if (!textItem(scrollContent, "7 days") || !textItem(scrollContent, "Contributions: 8")
                     || !textItem(scrollContent, "Commit contributions: 3") || !textItem(scrollContent, "PRs authored: 2")
                     || !textItem(scrollContent, "Issues authored: 1")) throw new Error("Seven-day Stats missing")
+                if (!textItem(scrollContent, "Stars: 12") || !textItem(scrollContent, "JavaScript: 60.0% · 60 bytes")
+                    || service.repositories.data.repositoryCount !== 2)
+                    throw new Error("Complete repository snapshots missing")
                 var date = service.stats.periods.week.days[0].date
                 var tile = namedItem(scrollContent, "contribution-" + date)
                 if (!tile || !tile.activeFocusOnTab || tile.Accessible.name.indexOf(date) < 0)

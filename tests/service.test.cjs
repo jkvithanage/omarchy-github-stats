@@ -8,6 +8,15 @@ vm.runInContext(readFileSync('ServiceModel.js', 'utf8'), model);
 const instant = Date.parse('2026-10-25T09:00:00Z');
 const alice = { id: 'U_alice', login: 'alice' };
 function response(data) { return { code: 0, stdout: JSON.stringify({ data }), stderr: '' }; }
+function repositories(nodes = [], more = false, cursor = null, totalCount = nodes.length, identity = alice) {
+    return response({ viewer: identity, user: { ...identity, repositories: {
+        nodes, totalCount, pageInfo: { hasNextPage: more, endCursor: cursor }
+    } } });
+}
+function finishCalendar(service, request, result, now) {
+    const next = service.complete(request.id, result, now);
+    return next && next.kind === 'repositories' ? service.complete(next.id, repositories([], false, null, 0, service.identity), now) : next;
+}
 function calendar(identity = alice, days, now = instant) {
     const end = Date.parse(new Date(now).toISOString().slice(0, 10) + 'T00:00:00Z');
     const returned = Array.from({ length: 370 }, (_, i) => ({
@@ -27,7 +36,7 @@ function calendar(identity = alice, days, now = instant) {
 function load(service, now = instant, identity = alice, days) {
     const identityRequest = service.refresh(now);
     const dataRequest = service.complete(identityRequest.id, response({ viewer: identity }), now);
-    service.complete(dataRequest.id, calendar(identity, days, now), now);
+    finishCalendar(service, dataRequest, calendar(identity, days, now), now);
 }
 
 test('Stats refresh requests all period summaries with one UTC end instant', () => {
@@ -176,7 +185,7 @@ test('overlapping consumers coalesce refreshes and superseded results cannot pub
     const second = service.complete(first.id, response({ viewer: alice }), instant);
     service.complete(first.id, calendar(), instant);
     assert.equal(service.calendar, null);
-    service.complete(second.id, calendar(), instant);
+    finishCalendar(service, second, calendar(), instant);
     assert.equal(service.todayCount(instant), 8);
     assert.equal(service.tick(instant + 899999), null);
     assert.ok(service.tick(instant + 900000));
@@ -191,7 +200,7 @@ test('UTC rollover hides yesterday and queues one refresh after an in-flight old
     const old = service.complete(identity.id, response({ viewer: alice }), before);
     assert.equal(service.tick(after), null);
     assert.equal(service.todayCount(after), null);
-    const next = service.complete(old.id, calendar(alice, [{ date: '2026-12-31', contributionCount: 5, contributionLevel: 'FIRST_QUARTILE' }], before), after);
+    const next = finishCalendar(service, old, calendar(alice, [{ date: '2026-12-31', contributionCount: 5, contributionLevel: 'FIRST_QUARTILE' }], before), after);
     assert.ok(next, 'rollover must not wait fifteen minutes after an old-day refresh');
     assert.equal(next.kind, 'identity');
     assert.equal(service.tick(after + 1), null);
@@ -346,4 +355,134 @@ test('rate limits honor Retry-After and reset guidance for all triggers while re
         assert.match(service.statusText(instant), /retry/i);
         assert.ok(service.tick(retryAt));
     }
+});
+
+function languages(entries, more = false, cursor = null, totalCount = entries.length) {
+    return { totalCount, edges: entries.map(([name, size]) => ({ size, node: { name } })),
+        pageInfo: { hasNextPage: more, endCursor: cursor } };
+}
+function repository(id, stars, entries, options = {}) {
+    return { id, owner: alice, isFork: false, stargazerCount: stars, languages: languages(entries), ...options };
+}
+function startRepositories(service, now = instant) {
+    const request = service.refresh(now);
+    const data = service.complete(request.id, response({ viewer: alice }), now);
+    return service.complete(data.id, calendar(), now);
+}
+
+test('repository snapshots publish only complete owned non-fork pages and all language bytes', () => {
+    const service = new model.Service(instant);
+    let request = startRepositories(service);
+    assert.ok(request, 'repository pagination must follow the Stats refresh');
+    assert.equal(request.kind, 'repositories');
+    assert.match(request.command.find(arg => arg.startsWith('query=')), /ownerAffiliations: \[OWNER\]/);
+    assert.ok(!request.command.join(' ').includes('isArchived:'));
+    const archivedPrivate = repository('R_a', 7, [], { isArchived: true, isPrivate: true,
+        languages: languages([['JavaScript', 60], ['Python', 30]], true, 'lang-1', 3) });
+    request = service.complete(request.id, repositories([
+        archivedPrivate,
+        repository('R_fork', 900, [['Wrong', 900]], { isFork: true }),
+        repository('R_org', 800, [['Wrong', 800]], { owner: { id: 'O_org', login: 'org' } })
+    ], true, 'repo-1', 4), instant + 1000);
+    assert.equal(service.repositories.data, null);
+    assert.equal(request.kind, 'repositories');
+    assert.ok(request.command.includes('cursor=repo-1'));
+    request = service.complete(request.id, repositories([
+        repository('R_b', 5, [['Python', 20], ['Go', 15], ['Rust', 10], ['C', 5], ['Shell', 4]])
+    ], false, 'repo-2', 4), instant + 2000);
+    assert.equal(service.repositories.data, null);
+    assert.equal(request.kind, 'languages');
+    assert.ok(request.command.includes('id=R_a'));
+    assert.ok(request.command.includes('languageCursor=lang-1'));
+    const done = service.complete(request.id, response({ viewer: alice, node: {
+        id: 'R_a', owner: alice, isFork: false, languages: languages([['Lua', 6]], false, 'lang-2', 3)
+    } }), instant + 3000);
+    assert.equal(done, null);
+    const snapshot = service.repositories.data;
+    assert.equal(snapshot.stars, 12);
+    assert.equal(snapshot.repositoryCount, 2);
+    assert.equal(snapshot.totalBytes, 150);
+    assert.deepEqual(Array.from(snapshot.languages, value => [value.name, value.bytes]), [
+        ['JavaScript', 60], ['Python', 50], ['Go', 15], ['Rust', 10], ['Lua', 6], ['Other', 9]
+    ]);
+    assert.equal(snapshot.languages[0].percentage, 40);
+    assert.equal(snapshot.languages[5].percentage, 6);
+    assert.equal(service.repositories.lastSuccess, instant + 3000);
+    assert.equal(service.repositories.stale, false);
+});
+
+test('repository refresh failures retain a complete snapshot without staling freshly loaded Stats', () => {
+    const service = new model.Service(instant);
+    let request = startRepositories(service);
+    service.complete(request.id, repositories([repository('R_old', 9, [['Python', 10]])]), instant);
+    const old = service.repositories.data;
+    for (const failure of [
+        { code: -1, failure: 'timeout' },
+        response({ viewer: alice, user: { ...alice, repositories: { nodes: [], totalCount: 1, pageInfo: { hasNextPage: false } } } })
+    ]) {
+        request = startRepositories(service, instant + 1000);
+        request = service.complete(request.id, repositories([repository('R_new', 100, [['Wrong', 100]])], true, 'next', 2), instant + 1000);
+        assert.equal(service.repositories.data, old);
+        service.complete(request.id, failure, instant + 2000);
+        assert.equal(service.repositories.data, old);
+        assert.equal(service.repositories.lastSuccess, instant);
+        assert.equal(service.repositories.stale, true);
+        assert.equal(service.stale, false);
+        assert.equal(service.lastSuccess, instant + 1000);
+    }
+    request = startRepositories(service, instant + 3000);
+    service.complete(request.id, response({ viewer: { id: 'U_bob', login: 'bob' }, user: null }), instant + 3000);
+    assert.equal(service.repositories.data, null);
+    assert.equal(service.calendar, null);
+});
+
+test('repository snapshots distinguish valid no-byte data from incomplete, repeated or malformed pages', () => {
+    const service = new model.Service(instant);
+    let request = startRepositories(service);
+    service.complete(request.id, repositories([repository('R_empty', 4, [])]), instant);
+    assert.equal(service.repositories.data.stars, 4);
+    assert.equal(service.repositories.data.totalBytes, 0);
+    assert.equal(service.repositories.data.languages.length, 0);
+    const old = service.repositories.data;
+    const badPages = [
+        repositories([repository('R_bad', -1, [])]),
+        repositories([repository('R_bad', 1, [['JS', -1]])]),
+        repositories([repository('R_bad', 1, [['JS', 1], ['JS', 2]])]),
+        repositories([repository('R_dup', 1, []), repository('R_dup', 1, [])]),
+        repositories([], true, 'next', 2),
+        repositories([repository('R_bad', 1, [])], true, null, 2)
+    ];
+    for (const page of badPages) {
+        request = startRepositories(service, instant + 1000);
+        service.complete(request.id, page, instant + 1000);
+        assert.equal(service.repositories.errorKind, 'response');
+        assert.equal(service.repositories.data, old);
+    }
+    request = startRepositories(service, instant + 2000);
+    request = service.complete(request.id, repositories([repository('R_a', 1, [])], true, 'same', 3), instant + 2000);
+    service.complete(request.id, repositories([repository('R_b', 1, [])], true, 'same', 3), instant + 2000);
+    assert.equal(service.repositories.errorKind, 'response');
+    assert.equal(service.repositories.data, old);
+    request = startRepositories(service, instant + 3000);
+    service.complete(request.id, repositories([repository('R_only', 1, [['JS', 10]])]), instant + 3000);
+    assert.deepEqual(Array.from(service.repositories.data.languages, value => value.name), ['JS']);
+    assert.equal(service.repositories.data.languages[0].percentage, 100);
+});
+
+test('interrupted language pagination cannot publish partial bytes or stars', () => {
+    const service = new model.Service(instant);
+    load(service);
+    const old = service.repositories.data;
+    let request = startRepositories(service, instant + 1000);
+    request = service.complete(request.id, repositories([repository('R_partial', 99, [], {
+        languages: languages([['Python', 200]], true, 'languages-next', 2)
+    })]), instant + 1000);
+    assert.equal(request.kind, 'languages');
+    assert.equal(service.repositories.data, old);
+    service.complete(request.id, { code: 1, stderr: 'error connecting to api.github.com' }, instant + 2000);
+    assert.equal(service.repositories.data, old);
+    assert.equal(service.repositories.stale, true);
+    assert.equal(service.repositories.lastSuccess, instant);
+    assert.equal(service.repositories.errorKind, 'network');
+    assert.equal(service.active, null);
 });
