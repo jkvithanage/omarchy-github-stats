@@ -46,4 +46,12 @@ if any("repositories(first:" in arg for arg in args):
             "edges": [{"size": size, "node": {"name": language}}]}}
     data["user"] = dict(identity, repositories={"nodes": [repo], "totalCount": 2,
         "pageInfo": {"hasNextPage": not second, "endCursor": "repo-last" if second else "repo-next"}})
+if any("authored: search(" in arg for arg in args):
+    def pr(number, author):
+        return {"__typename": "PullRequest", "id": f"PR_{number}", "number": number,
+                "title": f"Fixture PR {number}", "url": f"https://github.com/fixture/repo/pull/{number}",
+                "updatedAt": "2026-10-25T09:00:00Z", "state": "OPEN", "isDraft": number == 1,
+                "author": {"login": author}, "repository": {"nameWithOwner": "fixture/repo", "isPrivate": number == 1}}
+    data.update(authored={"issueCount": 1, "nodes": [pr(1, "fixture")]},
+                secondary={"issueCount": 1, "nodes": [pr(2, "other")]}, overlap={"nodes": [{"id": "PR_1"}]})
 print("HTTP/2.0 200 OK\nContent-Type: application/json\n\n" + json.dumps({"data": data}))

@@ -23,6 +23,15 @@ BarWidget {
     readonly property string description: "GitHub: " + (countText === "—" ? "today's contributions unavailable" : countText + " contributions today (UTC)")
 
     function close() { popupOpen = false }
+    function revealPopupItem(item) {
+        var viewport = popupScroll.contentItem
+        var point = item.mapToItem(content, 0, 0)
+        var position = viewport.contentY
+        if (point.y < position) position = point.y
+        else if (point.y + item.height > position + viewport.height) position = point.y + item.height - viewport.height
+        viewport.contentY = Math.max(0, Math.min(position, viewport.contentHeight - viewport.height))
+    }
+    onTabIndexChanged: if (popupScroll.contentItem) popupScroll.contentItem.contentY = 0
     function toggle() {
         if (!popupOpen) { tabIndex = 0; periodIndex = 0; detailDate = "" }
         popupOpen = !popupOpen
@@ -152,13 +161,7 @@ BarWidget {
                         periodStats: root.selectedStats
                         period: root.period
                         onDaySelected: function(date) { root.detailDate = date }
-                        onTileFocused: function(tile) {
-                            var viewport = popupScroll.contentItem
-                            var point = tile.mapToItem(content, 0, 0)
-                            if (point.y < viewport.contentY) viewport.contentY = point.y
-                            else if (point.y + tile.height > viewport.contentY + viewport.height)
-                                viewport.contentY = point.y + tile.height - viewport.height
-                        }
+                        onTileFocused: function(tile) { root.revealPopupItem(tile) }
                     }
 
                     Text {
@@ -206,10 +209,21 @@ BarWidget {
                     }
                 }
 
-                Text {
-                    visible: root.tabIndex !== 0
+                WorkList {
+                    objectName: "pr-work-list"
+                    visible: root.tabIndex === 1
                     width: parent.width
-                    text: root.tabIndex === 1 ? "Pull request previews are not available yet." : "Issue previews are not available yet."
+                    section: root.service ? root.service.prs : null
+                    refreshing: root.service ? root.service.refreshing : false
+                    sectionName: "PRs"
+                    onOpenUrl: function(url) { Qt.openUrlExternally(url) }
+                    onLinkFocused: function(link) { root.revealPopupItem(link) }
+                }
+
+                Text {
+                    visible: root.tabIndex === 2
+                    width: parent.width
+                    text: "Issue previews are not available yet."
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: Commons.Color.foreground

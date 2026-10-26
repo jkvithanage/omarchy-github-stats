@@ -14,8 +14,10 @@ function repositories(nodes = [], more = false, cursor = null, totalCount = node
     } } });
 }
 function finishCalendar(service, request, result, now) {
-    const next = service.complete(request.id, result, now);
-    return next && next.kind === 'repositories' ? service.complete(next.id, repositories([], false, null, 0, service.identity), now) : next;
+    let next = service.complete(request.id, result, now);
+    if (next && next.kind === 'repositories') next = service.complete(next.id, repositories([], false, null, 0, service.identity), now);
+    if (next && next.kind === 'prs') next = service.complete(next.id, workResponse([], [], [], service.identity), now);
+    return next;
 }
 function calendar(identity = alice, days, now = instant) {
     const end = Date.parse(new Date(now).toISOString().slice(0, 10) + 'T00:00:00Z');
@@ -370,6 +372,86 @@ function startRepositories(service, now = instant) {
     return service.complete(data.id, calendar(), now);
 }
 
+function workResponse(authored = [], secondary = [], overlap = [], identity = alice, authoredTotal = authored.length, secondaryTotal = secondary.length) {
+    return response({ viewer: identity, authored: { issueCount: authoredTotal, nodes: authored },
+        secondary: { issueCount: secondaryTotal, nodes: secondary }, overlap: { nodes: overlap.map(id => ({ id })) } });
+}
+function pullRequest(number, author = 'alice', options = {}) {
+    return { __typename: 'PullRequest', id: 'PR_' + number, number, title: 'PR ' + number,
+        url: 'https://github.com/owner/repo/pull/' + number, updatedAt: '2026-10-25T09:00:00Z', state: 'OPEN',
+        author: { login: author }, repository: { nameWithOwner: 'owner/repo', isPrivate: false }, isDraft: false, ...options };
+}
+function startPrs(service, now = instant) {
+    const request = startRepositories(service, now);
+    return service.complete(request.id, repositories(), now);
+}
+function finishPrs(service, now = instant) {
+    return service.active && service.active.kind === 'prs' ? service.complete(service.active.id, workResponse(), now) : null;
+}
+
+test('PR previews use disjoint open searches including team requests and authoritative overlap badges', () => {
+    const service = new model.Service(instant);
+    let request = startPrs(service);
+    assert.ok(request && request.kind === 'prs');
+    assert.ok(request.command.includes('authored=is:pr is:open author:alice sort:updated-desc'));
+    assert.ok(request.command.includes('secondary=is:pr is:open review-requested:alice -author:alice sort:updated-desc'));
+    assert.ok(!request.command.join(' ').includes('user-review-requested:'));
+    const authored = Array.from({ length: 10 }, (_, i) => pullRequest(i + 1, 'alice', {
+        updatedAt: new Date(instant - i * 1000).toISOString(), isDraft: i === 0,
+        repository: { nameWithOwner: 'owner/repo', isPrivate: i === 0 }
+    })).reverse();
+    service.complete(request.id, workResponse(authored, [pullRequest(20, 'bob'), pullRequest(21, 'carol')], ['PR_1'], alice, 1200, 2), instant);
+    const groups = service.prs.data.groups;
+    assert.equal(groups[0].total, 1200);
+    assert.equal(groups[0].rows.length, 10);
+    assert.equal(groups[0].rows[0].number, 1);
+    assert.equal(groups[0].rows[0].role, 'Authored · Review requested');
+    assert.equal(groups[0].rows[0].isDraft, true);
+    assert.equal(groups[0].rows[0].isPrivate, true);
+    assert.equal(groups[1].label, 'Review requests from other authors');
+    assert.equal(groups[1].total, 2);
+    assert.match(decodeURIComponent(groups[1].url), /review-requested:alice -author:alice/);
+    assert.match(decodeURIComponent(groups[0].url), /is:open author:alice/);
+    assert.equal(service.active, null);
+    assert.equal(service.prs.lastSuccess, instant);
+    request = startPrs(service, instant + 1000);
+    service.complete(request.id, workResponse([pullRequest(1)], [], []), instant + 1000);
+    assert.equal(service.prs.data.groups[1].total, 0, 'fulfilled review requests disappear');
+    assert.equal(service.prs.data.groups[0].rows[0].role, 'Authored');
+});
+
+test('PR states distinguish loading, empty, failed and stale while protecting account and browser links', () => {
+    const service = new model.Service(instant);
+    assert.equal(service.prs.data, null);
+    let request = startPrs(service);
+    assert.equal(service.prs.data, null, 'pending work must not appear empty');
+    service.complete(request.id, workResponse(), instant);
+    assert.equal(service.prs.data.groups[0].total, 0);
+    assert.equal(service.prs.data.groups[0].rows.length, 0);
+    const old = service.prs.data;
+    for (const result of [
+        { code: -1, failure: 'timeout' },
+        workResponse([pullRequest(1, 'alice', { url: 'file:///tmp/unsafe' })]),
+        workResponse([pullRequest(1, 'bob')]),
+        workResponse([], [pullRequest(2, 'alice')]),
+        workResponse([pullRequest(1, 'alice', { state: 'CLOSED' })]),
+        workResponse([pullRequest(1)], [], [], alice, 5, 0)
+    ]) {
+        request = startPrs(service, instant + 1000);
+        service.complete(request.id, result, instant + 2000);
+        assert.equal(service.prs.data, old);
+        assert.equal(service.prs.lastSuccess, instant);
+        assert.equal(service.prs.stale, true);
+        assert.equal(service.stale, false);
+        assert.equal(service.repositories.stale, false);
+    }
+    request = startPrs(service, instant + 3000);
+    service.complete(request.id, workResponse([], [], [], { id: 'U_bob', login: 'bob' }), instant + 3000);
+    assert.equal(service.prs.data, null);
+    assert.equal(service.repositories.data, null);
+    assert.equal(service.stats, null);
+});
+
 test('repository snapshots publish only complete owned non-fork pages and all language bytes', () => {
     const service = new model.Service(instant);
     let request = startRepositories(service);
@@ -394,10 +476,10 @@ test('repository snapshots publish only complete owned non-fork pages and all la
     assert.equal(request.kind, 'languages');
     assert.ok(request.command.includes('id=R_a'));
     assert.ok(request.command.includes('languageCursor=lang-1'));
-    const done = service.complete(request.id, response({ viewer: alice, node: {
+    service.complete(request.id, response({ viewer: alice, node: {
         id: 'R_a', owner: alice, isFork: false, languages: languages([['Lua', 6]], false, 'lang-2', 3)
     } }), instant + 3000);
-    assert.equal(done, null);
+    assert.equal(finishPrs(service, instant + 3000), null);
     const snapshot = service.repositories.data;
     assert.equal(snapshot.stars, 12);
     assert.equal(snapshot.repositoryCount, 2);
@@ -415,6 +497,7 @@ test('repository refresh failures retain a complete snapshot without staling fre
     const service = new model.Service(instant);
     let request = startRepositories(service);
     service.complete(request.id, repositories([repository('R_old', 9, [['Python', 10]])]), instant);
+    finishPrs(service);
     const old = service.repositories.data;
     for (const failure of [
         { code: -1, failure: 'timeout' },
@@ -440,6 +523,7 @@ test('repository snapshots distinguish valid no-byte data from incomplete, repea
     const service = new model.Service(instant);
     let request = startRepositories(service);
     service.complete(request.id, repositories([repository('R_empty', 4, [])]), instant);
+    finishPrs(service);
     assert.equal(service.repositories.data.stars, 4);
     assert.equal(service.repositories.data.totalBytes, 0);
     assert.equal(service.repositories.data.languages.length, 0);

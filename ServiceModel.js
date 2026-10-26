@@ -14,6 +14,13 @@ var repositoryQuery = "query($login: String!, $cursor: String, $languageCursor: 
     + "nodes { id owner { id login } isFork stargazerCount " + languageFields + "} } } }";
 var languageQuery = "query($id: ID!, $languageCursor: String!) { viewer { id login } node(id: $id) { ... on Repository { "
     + "id owner { id login } isFork " + languageFields + "} } }";
+var prFields = "... on PullRequest { id number title url updatedAt state isDraft author { login } repository { nameWithOwner isPrivate } } ";
+// The overlap lookup supplies badges only, never totals or a third group.
+// With the same ordering, an authored top-ten match is also in the subset's top ten.
+var prQuery = "query($authored: String!, $secondary: String!, $overlap: String!) { viewer { id login } "
+    + "authored: search(query: $authored, type: ISSUE, first: 10) { issueCount nodes { __typename " + prFields + "} } "
+    + "secondary: search(query: $secondary, type: ISSUE, first: 10) { issueCount nodes { __typename " + prFields + "} } "
+    + "overlap: search(query: $overlap, type: ISSUE, first: 10) { nodes { ... on PullRequest { id } } } }";
 
 function utcDate(now) { return new Date(now).toISOString().slice(0, 10); }
 
@@ -241,13 +248,64 @@ RepositoryScan.prototype.snapshot = function() {
     return { stars: this.stars, repositoryCount: this.repositoryCount, totalBytes: total, languages: total ? top : [] };
 };
 
-function repositoryState() { return { data: null, lastSuccess: 0, stale: false, errorKind: "" }; }
+function sectionState() { return { data: null, lastSuccess: 0, stale: false, errorKind: "" }; }
+
+function staleSection(section, kind) {
+    return { data: section.data, lastSuccess: section.lastSuccess, stale: section.data !== null, errorKind: kind };
+}
+
+function prSearches(login) {
+    var base = "is:pr is:open ";
+    return { authored: base + "author:" + login + " sort:updated-desc",
+        secondary: base + "review-requested:" + login + " -author:" + login + " sort:updated-desc",
+        overlap: base + "author:" + login + " review-requested:" + login + " sort:updated-desc" };
+}
+
+function prGroups(data, identity) {
+    if (!data.overlap || !Array.isArray(data.overlap.nodes) || data.overlap.nodes.length > 10) return null;
+    var overlap = Object.create(null);
+    for (var o = 0; o < data.overlap.nodes.length; o++) {
+        var match = data.overlap.nodes[o];
+        if (!match || typeof match.id !== "string" || !match.id || overlap[match.id]) return null;
+        overlap[match.id] = true;
+    }
+    var searches = prSearches(identity.login);
+    var seen = Object.create(null);
+    var groups = [];
+    for (var g = 0; g < 2; g++) {
+        var key = g === 0 ? "authored" : "secondary";
+        var connection = data[key];
+        if (!connection || !validCount(connection.issueCount) || !Array.isArray(connection.nodes)
+            || connection.nodes.length !== Math.min(10, connection.issueCount)) return null;
+        var rows = [];
+        for (var i = 0; i < connection.nodes.length; i++) {
+            var node = connection.nodes[i];
+            if (!node || node.__typename !== "PullRequest" || typeof node.id !== "string" || !node.id || seen[node.id]
+                || node.state !== "OPEN" || !validCount(node.number) || node.number === 0
+                || typeof node.title !== "string" || typeof node.updatedAt !== "string" || !isFinite(Date.parse(node.updatedAt))
+                || typeof node.isDraft !== "boolean" || !node.repository || typeof node.repository.isPrivate !== "boolean"
+                || typeof node.repository.nameWithOwner !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(node.repository.nameWithOwner)
+                || node.url !== "https://github.com/" + node.repository.nameWithOwner + "/pull/" + node.number) return null;
+            var authored = node.author && typeof node.author.login === "string" && node.author.login.toLowerCase() === identity.login.toLowerCase();
+            if (Boolean(authored) !== (g === 0)) return null;
+            seen[node.id] = true;
+            rows.push({ id: node.id, title: node.title, number: node.number, url: node.url, updatedAt: node.updatedAt,
+                repository: node.repository.nameWithOwner, isPrivate: node.repository.isPrivate, isDraft: node.isDraft,
+                role: g === 0 ? "Authored" + (overlap[node.id] ? " · Review requested" : "") : "Review requested" });
+        }
+        rows.sort(function(a, b) { return Date.parse(b.updatedAt) - Date.parse(a.updatedAt); });
+        groups.push({ label: g === 0 ? "Authored PRs" : "Review requests from other authors", total: connection.issueCount,
+            rows: rows, url: "https://github.com/search?q=" + encodeURIComponent(searches[key]) + "&type=pullrequests" });
+    }
+    return groups;
+}
 
 function Service(now) {
     this.identity = null;
     this.calendar = null;
     this.stats = null;
-    this.repositories = repositoryState();
+    this.repositories = sectionState();
+    this.prs = sectionState();
     this.repositoryScan = null;
     this.lastSuccess = 0;
     this.stale = false;
@@ -275,7 +333,8 @@ Service.prototype.clearAccount = function() {
     this.identity = null;
     this.calendar = null;
     this.stats = null;
-    this.repositories = repositoryState();
+    this.repositories = sectionState();
+    this.prs = sectionState();
     this.repositoryScan = null;
     this.lastSuccess = 0;
     this.stale = false;
@@ -283,16 +342,23 @@ Service.prototype.clearAccount = function() {
 
 Service.prototype.fail = function(kind, now) {
     var repositoryFailure = this.active && (this.active.kind === "repositories" || this.active.kind === "languages");
+    var prFailure = this.active && this.active.kind === "prs";
     this.active = null;
     this.repositoryScan = null;
     this.errorKind = kind;
-    if (!repositoryFailure) this.stale = this.calendar !== null;
-    this.repositories = { data: this.repositories.data, lastSuccess: this.repositories.lastSuccess,
-        stale: this.repositories.data !== null, errorKind: kind };
+    if (!repositoryFailure && !prFailure) this.stale = this.calendar !== null;
+    if (!prFailure) this.repositories = staleSection(this.repositories, kind);
+    this.prs = staleSection(this.prs, kind);
     this.nextRefresh = kind === "rate-limit" ? this.retryAt : now + refreshInterval;
     this.rolloverPending = false;
     if (kind === "authentication" || kind === "account") this.clearAccount();
     return null;
+};
+
+Service.prototype.prRequest = function(at) {
+    this.active = { id: ++this.serial, kind: "prs", at: at, identity: this.identity,
+        command: command(prQuery, prSearches(this.identity.login)) };
+    return this.active;
 };
 
 Service.prototype.repositoryRequest = function(step, at) {
@@ -339,8 +405,14 @@ Service.prototype.complete = function(id, result, now) {
         return this.active;
     }
     if (!sameIdentity(request.identity, data.viewer)
-        || request.kind !== "languages" && !sameIdentity(request.identity, data.user))
+        || request.kind !== "languages" && request.kind !== "prs" && !sameIdentity(request.identity, data.user))
         return this.fail("account", now);
+    if (request.kind === "prs") {
+        var groups = prGroups(data, request.identity);
+        if (!groups) return this.fail("response", now);
+        this.prs = { data: { groups: groups }, lastSuccess: now, stale: false, errorKind: "" };
+        return this.finishRefresh(now);
+    }
     if (request.kind === "repositories" || request.kind === "languages") {
         var valid;
         if (request.kind === "repositories") valid = this.repositoryScan.repositories(data.user.repositories);
@@ -355,7 +427,7 @@ Service.prototype.complete = function(id, result, now) {
         if (step) return this.repositoryRequest(step, request.at);
         this.repositories = { data: this.repositoryScan.snapshot(), lastSuccess: now, stale: false, errorKind: "" };
         this.repositoryScan = null;
-        return this.finishRefresh(now);
+        return this.prRequest(request.at);
     }
     var days = calendarDays(data.user);
     if (days === null) return this.fail("response", now);

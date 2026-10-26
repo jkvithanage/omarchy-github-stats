@@ -13,6 +13,7 @@ Item {
     readonly property var calendar: model.calendar
     readonly property var stats: model.stats
     readonly property var repositories: model.repositories
+    readonly property var prs: model.prs
     readonly property var todayCount: model.todayCount(now)
     readonly property bool refreshing: model.active !== null
     readonly property double lastSuccess: model.lastSuccess
