@@ -91,6 +91,14 @@ test('period dates cross UTC month, year and leap boundaries without changing an
         assert.equal(week.days[6], year.days.at(-1));
         assert.equal(month.days[29].contributionLevel, 'FOURTH_QUARTILE');
         assert.equal(week.contributions, 17);
+        for (const period of [month, year]) {
+            const first = period.layout.cells.findIndex(Boolean);
+            assert.equal(first, new Date(period.days[0].date + 'T00:00:00Z').getUTCDay());
+            assert.equal(period.layout.cells.length % 7, 0);
+            assert.equal(period.layout.cells.filter(Boolean).length, period.days.length);
+            assert.equal(period.layout.cells.filter(Boolean).at(-1).date, date.slice(0, 10));
+        }
+        assert.ok(year.layout.months.some(label => label.date === date.slice(0, 7)), date);
     }
 });
 
@@ -121,6 +129,34 @@ test('incomplete Stats responses retain the entire last snapshot and original fr
     const first = service.refresh(instant + 3000);
     service.complete(first.id, { code: 1, stdout: 'HTTP/2.0 401 Unauthorized\n\n{}' }, instant + 3000);
     assert.equal(service.stats, null);
+});
+
+test('cached Stats layouts align Sunday-first with empty padding and annual month labels', () => {
+    const service = new model.Service(instant);
+    load(service);
+    const { week, month, year } = service.stats.periods;
+    assert.equal(week.layout.columns, 7);
+    assert.equal(week.layout.rows, 1);
+    assert.equal(week.layout.cells.length, 7);
+    assert.equal(month.days[0].date, '2026-09-26'); // Saturday
+    assert.equal(month.layout.columns, 7);
+    assert.equal(month.layout.rows, 6);
+    assert.deepEqual(Array.from(month.layout.cells.slice(0, 6)), [null, null, null, null, null, null]);
+    assert.equal(month.layout.cells[6].date, '2026-09-26');
+    assert.equal(month.layout.cells[35].date, '2026-10-25'); // Sunday in final week
+    assert.deepEqual(Array.from(month.layout.cells.slice(36)), [null, null, null, null, null, null]);
+    assert.equal(year.layout.rows, 7);
+    assert.equal(year.layout.columns, 53);
+    assert.equal(year.layout.cells[0].date, '2025-10-26');
+    assert.equal(year.layout.cells.filter(Boolean).length, 365);
+    assert.deepEqual(Array.from(year.layout.months, item => item.date), [
+        '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04',
+        '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'
+    ]);
+    assert.equal(year.layout.months[0].column, 0);
+    assert.equal(year.layout.months[2].column, 9);
+    assert.equal(week.days.at(-1), year.layout.cells[364]);
+    assert.equal(service.active, null, 'reading all three cached layouts needs no request');
 });
 
 test('shared consumers see the same successful UTC count and freshness', () => {

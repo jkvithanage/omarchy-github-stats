@@ -133,7 +133,30 @@ function accountStats(calendar, user, at) {
         month: periodStats(calendar, user.month, periodStart(at, 30), to),
         year: periodStats(calendar, user.contributionsCollection, annualStart(at), to)
     };
-    return periods.week && periods.month && periods.year ? { at: at, periods: periods } : null;
+    if (!periods.week || !periods.month || !periods.year) return null;
+    for (var key in periods) periods[key].layout = calendarLayout(periods[key].days, key);
+    return { at: at, periods: periods };
+}
+
+function calendarLayout(days, period) {
+    if (period === "week") return { columns: 7, rows: 1, cells: days, months: [] };
+    var offset = new Date(days[0].date + "T00:00:00Z").getUTCDay();
+    var cells = [];
+    for (var i = 0; i < offset; i++) cells.push(null);
+    cells = cells.concat(days);
+    while (cells.length % 7) cells.push(null);
+    var months = [];
+    if (period === "year") {
+        days.forEach(function(day, index) {
+            if (index !== 0 && day.date.slice(8) !== "01") return;
+            var column = Math.floor((offset + index) / 7);
+            // Omit a tiny initial partial month when its label would collide.
+            if (months.length && column - months[months.length - 1].column < 3) months.pop();
+            months.push({ date: day.date.slice(0, 7), column: column });
+        });
+    }
+    return { columns: period === "year" ? cells.length / 7 : 7,
+        rows: period === "year" ? 7 : cells.length / 7, cells: cells, months: months };
 }
 
 function Service(now) {

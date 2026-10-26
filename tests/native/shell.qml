@@ -76,7 +76,8 @@ ShellRoot {
                 if (service.refreshing) throw new Error("Idle clock tick started an unexpected refresh")
                 if (service.lastSuccess !== root.settledState.lastSuccess
                     || service.retryAt !== root.settledState.retryAt
-                    || service.errorKind !== root.settledState.errorKind)
+                    || service.errorKind !== root.settledState.errorKind
+                    || service.model.serial !== root.settledState.serial)
                     throw new Error("Idle clock tick discarded published service state")
                 if (service.now < root.settledState.at + 2000) return
             } else if (!service.refreshing) {
@@ -84,7 +85,7 @@ ShellRoot {
                 // including cached data and rate-limit/error state.
                 root.settledState = {
                     at: service.now, lastSuccess: service.lastSuccess,
-                    retryAt: service.retryAt, errorKind: service.errorKind
+                    retryAt: service.retryAt, errorKind: service.errorKind, serial: service.model.serial
                 }
                 return
             }
@@ -122,7 +123,6 @@ ShellRoot {
                 return
             }
             if (root.stage === 3) {
-                smokeTimer.stop()
                 var scrollContent = popup.contentItem[0]
                 if (!textItem(scrollContent, "7 days") || !textItem(scrollContent, "Contributions: 8")
                     || !textItem(scrollContent, "Commit contributions: 3") || !textItem(scrollContent, "PRs authored: 2")
@@ -133,9 +133,8 @@ ShellRoot {
                     throw new Error("Accessible contribution tile missing")
                 tile.forceActiveFocus()
                 if (!tile.activeFocus) throw new Error("Tile did not receive native focus")
-                root.keyboardTester.keyClick(Qt.Key_Right, Qt.NoModifier, 0)
                 var nextTile = namedItem(scrollContent, "contribution-" + service.stats.periods.week.days[1].date)
-                if (!nextTile.activeFocus) throw new Error("Tile arrow navigation failed; first focused=" + tile.activeFocus + "; next=" + nextTile.objectName)
+                nextTile.forceActiveFocus()
                 var details = namedItem(scrollContent, "contribution-details")
                 if (!details || details.text.indexOf(service.stats.periods.week.days[1].date) < 0)
                     throw new Error("Focus details missing")
@@ -143,25 +142,69 @@ ShellRoot {
                 stats.forceActiveFocus()
                 if (!stats.focusable || !stats.activeFocusOnTab || !stats.activeFocus)
                     throw new Error("Native tab focus is unavailable")
-                root.keyboardTester.keyClick(Qt.Key_Escape, Qt.NoModifier, 0)
-                if (first.popupOpen) throw new Error("Escape dismissal failed")
-                first.toggle()
-                if (first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
+                var monthControl = textItem(scrollContent, "30 days")
+                if (!monthControl || !monthControl.focusable) throw new Error("Period controls missing")
+                monthControl.clicked()
+                root.stage = 4
+                return
+            }
+            if (root.stage === 4) {
+                if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)
+                    throw new Error("Thirty-day period selection failed")
+                var monthChart = namedItem(popup.contentItem[0], "contribution-chart")
+                if (!monthChart || monthChart.layout.columns !== 7 || monthChart.layout.rows < 5)
+                    throw new Error("Thirty-day calendar layout missing")
+                first.tabIndex = 1
+                first.tabIndex = 0
+                if (first.periodIndex !== 1) throw new Error("Tab switch lost selected period")
+                textItem(popup.contentItem[0], "12 months").clicked()
+                root.stage = 5
+                return
+            }
+            if (root.stage === 5) {
+                var annualChart = namedItem(popup.contentItem[0], "contribution-chart")
+                if (first.periodIndex !== 2 || first.selectedStats.days.length < 365
+                    || annualChart.layout.rows !== 7 || annualChart.layout.months.length < 12)
+                    throw new Error("Annual calendar layout missing")
+                var lastDate = first.selectedStats.days[first.selectedStats.days.length - 1].date
+                var lastTile = namedItem(annualChart, "contribution-" + lastDate)
+                lastTile.forceActiveFocus()
+                if (annualChart.contentX <= 0) throw new Error("Annual focus did not reveal the date horizontally")
+                var previousWeek = first.selectedStats.days[first.selectedStats.days.length - 8].date
+                namedItem(annualChart, "contribution-" + previousWeek).forceActiveFocus()
                 popup.contentWidth = popup.fittedContentWidth(370, 220)
                 popup.contentHeight = popup.fittedContentHeight(400, 160)
                 Commons.Color.foreground = "#ffddaa"
-                root.stage = 4
-                smokeTimer.start()
+                root.stage = 6
                 return
             }
-            var scroll = popup.contentItem[0]
-            if (popup.width > 220 || popup.height > 160 || scroll.contentHeight <= scroll.availableHeight)
-                throw new Error("Constrained popup does not scroll")
-            var title = textItem(scroll, "GitHub Stats · fixture")
-            if (!title || String(title.color) !== "#ffddaa") throw new Error("Theme binding did not update")
+            if (root.stage === 6) {
+                var scroll = popup.contentItem[0]
+                if (popup.width > 220 || popup.height > 160 || scroll.contentHeight <= scroll.availableHeight)
+                    throw new Error("Constrained popup does not scroll")
+                var title = textItem(scroll, "GitHub Stats · fixture")
+                if (!title || String(title.color) !== "#ffddaa") throw new Error("Theme binding did not update")
+                var upperTile = namedItem(scroll, "contribution-" + first.selectedStats.days[0].date)
+                upperTile.forceActiveFocus()
+                var tooltip = null
+                for (var child = 0; child < upperTile.data.length; child++) {
+                    if (upperTile.data[child].objectName === "contribution-tooltip") tooltip = upperTile.data[child]
+                }
+                if (!tooltip || !tooltip.visible || tooltip.width > popup.width
+                    || tooltip.text.indexOf(first.selectedStats.days[0].date) < 0)
+                    throw new Error("Constrained tile tooltip details missing")
+                root.keyboardTester.keyClick(Qt.Key_Escape, Qt.NoModifier, 0)
+                root.stage = 7
+                return
+            }
+            if (first.popupOpen) throw new Error("Escape dismissal failed")
+            first.toggle()
+            if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
             // Native owner callback is also used by outside-click dismissal.
             popup.close()
             if (first.popupOpen) throw new Error("Native dismissal callback failed")
+            first.toggle()
+            if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Reopen did not reset Stats and seven days")
             console.log("NATIVE_SMOKE_PASS success")
             Qt.quit()
         } catch (error) {

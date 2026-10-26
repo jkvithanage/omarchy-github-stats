@@ -13,14 +13,16 @@ BarWidget {
     property bool popupOpen: false
     property int tabIndex: 0
     property string detailDate: ""
-    readonly property var selectedStats: service && service.stats ? service.stats.periods.week : null
+    property int periodIndex: 0
+    readonly property string period: ["week", "month", "year"][periodIndex]
+    readonly property var selectedStats: service && service.stats ? service.stats.periods[period] : null
     readonly property var detailDay: service && service.calendar ? service.calendar[detailDate] : null
     readonly property string countText: service && service.todayCount !== null ? String(service.todayCount) : "—"
     readonly property string description: "GitHub: " + (countText === "—" ? "today's contributions unavailable" : countText + " contributions today (UTC)")
 
     function close() { popupOpen = false }
     function toggle() {
-        if (!popupOpen) { tabIndex = 0; detailDate = "" }
+        if (!popupOpen) { tabIndex = 0; periodIndex = 0; detailDate = "" }
         popupOpen = !popupOpen
     }
 
@@ -52,6 +54,7 @@ BarWidget {
         onOpenChanged: if (open) Qt.callLater(function() { tabs.itemAt(0).forceActiveFocus() })
 
         Controls.ScrollView {
+            id: popupScroll
             anchors.fill: parent
             clip: true
             contentWidth: availableWidth
@@ -106,67 +109,53 @@ BarWidget {
                     width: parent.width
                     spacing: Style.space(8)
 
-                    Text {
-                        text: "7 days"
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.body
+                    Flow {
+                        width: parent.width
+                        spacing: Style.space(4)
+                        Repeater {
+                            id: periods
+                            model: ["7 days", "30 days", "12 months"]
+                            Button {
+                                required property string modelData
+                                required property int index
+                                width: Math.max(Style.space(90), (parent.width - parent.spacing * 2) / 3)
+                                text: modelData
+                                fontSize: Style.font.caption
+                                horizontalPadding: Style.space(4)
+                                selected: root.periodIndex === index
+                                focusable: true
+                                Accessible.role: Accessible.RadioButton
+                                Accessible.name: modelData
+                                Accessible.checked: selected
+                                onClicked: { root.periodIndex = index; root.detailDate = "" }
+                                Keys.onLeftPressed: periods.itemAt((index + 2) % 3).forceActiveFocus()
+                                Keys.onRightPressed: periods.itemAt((index + 1) % 3).forceActiveFocus()
+                            }
+                        }
                     }
 
                     Text {
                         width: parent.width
                         text: root.selectedStats
                             ? root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) + " (UTC)"
-                            : "Seven-day activity is unavailable until a complete refresh succeeds."
+                            : "Period activity is unavailable until a complete refresh succeeds."
                         wrapMode: Text.Wrap
                         color: Commons.Color.foreground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.bodySmall
                     }
 
-                    Row {
-                        visible: root.selectedStats !== null
+                    Heatmap {
                         width: parent.width
-                        spacing: Style.space(4)
-                        Repeater {
-                            id: tiles
-                            model: root.selectedStats ? root.selectedStats.days : []
-                            Column {
-                                id: tile
-                                required property var modelData
-                                required property int index
-                                readonly property int level: ["NONE", "FIRST_QUARTILE", "SECOND_QUARTILE", "THIRD_QUARTILE", "FOURTH_QUARTILE"].indexOf(modelData.contributionLevel)
-                                objectName: "contribution-" + modelData.date
-                                width: (parent.width - parent.spacing * 6) / 7
-                                spacing: Style.space(4)
-                                activeFocusOnTab: true
-                                Accessible.role: Accessible.StaticText
-                                Accessible.name: modelData.date + ": " + modelData.contributionCount + " contributions (UTC)"
-                                onActiveFocusChanged: if (activeFocus) root.detailDate = modelData.date
-                                Keys.onLeftPressed: tiles.itemAt(Math.max(0, index - 1)).forceActiveFocus()
-                                Keys.onRightPressed: tiles.itemAt(Math.min(6, index + 1)).forceActiveFocus()
-                                HoverHandler {
-                                    onHoveredChanged: if (hovered) root.detailDate = tile.modelData.date
-                                }
-                                Rectangle {
-                                    width: parent.width
-                                    height: Style.space(28)
-                                    radius: Style.space(3)
-                                    color: tile.level === 0 ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
-                                        : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + tile.level * 0.2)
-                                    border.width: tile.activeFocus ? 2 : 0
-                                    border.color: Commons.Color.foreground
-                                }
-                                Text {
-                                    width: parent.width
-                                    text: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(tile.modelData.date + "T00:00:00Z").getUTCDay()]
-                                        + "\n" + tile.modelData.date.slice(8) + "\n" + tile.modelData.contributionCount
-                                    horizontalAlignment: Text.AlignHCenter
-                                    color: Commons.Color.foreground
-                                    font.family: Style.font.family
-                                    font.pixelSize: Style.font.caption
-                                }
-                            }
+                        periodStats: root.selectedStats
+                        period: root.period
+                        onDaySelected: function(date) { root.detailDate = date }
+                        onTileFocused: function(tile) {
+                            var viewport = popupScroll.contentItem
+                            var point = tile.mapToItem(content, 0, 0)
+                            if (point.y < viewport.contentY) viewport.contentY = point.y
+                            else if (point.y + tile.height > viewport.contentY + viewport.height)
+                                viewport.contentY = point.y + tile.height - viewport.height
                         }
                     }
 
@@ -229,7 +218,7 @@ BarWidget {
                 Text {
                     visible: root.tabIndex === 0
                     width: parent.width
-                    text: "30-day and annual views, stars, and repository languages are not available yet."
+                    text: "Stars and repository languages are not available yet."
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: Commons.Color.foreground
