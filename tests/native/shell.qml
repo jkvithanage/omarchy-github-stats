@@ -11,6 +11,7 @@ ShellRoot {
     property var keyboardTester: null
     property var settledState: null
     property string openedUrl: ""
+    property var beforeManualRefresh: null
     readonly property string mode: Quickshell.env("STATS_FIXTURE") || "success"
 
     Plugin.Service { id: service }
@@ -113,7 +114,7 @@ ShellRoot {
                 if (root.stage === 0) { service.refresh(); service.refresh(); root.stage = 1 }
                 return
             }
-            if (root.mode !== "success") {
+            if (root.mode !== "success" && root.mode !== "stale") {
                 var expected = { auth: "authentication", network: "network", rate: "rate-limit", hang: "timeout" }[root.mode]
                 if (service.errorKind !== expected) throw new Error("Unexpected service failure state")
                 if (service.lastSuccess !== 0 || service.todayCount !== null) throw new Error("Failure was presented as data")
@@ -123,6 +124,21 @@ ShellRoot {
             }
             if (service.todayCount !== 8 || service.identity.login !== "fixture") throw new Error("Shared fixture not published")
             if (first.service !== second.service) throw new Error("Widgets do not share a service")
+            if (root.stage === 8) {
+                if (root.mode === "stale") {
+                    if (service.errorKind !== "network" || !service.stale || !service.repositories.stale || !service.prs.stale || !service.issues.stale
+                        || service.lastSuccess !== root.beforeManualRefresh.stats
+                        || service.repositories.lastSuccess !== root.beforeManualRefresh.repositories
+                        || service.prs.lastSuccess !== root.beforeManualRefresh.prs
+                        || service.issues.lastSuccess !== root.beforeManualRefresh.issues)
+                        throw new Error("Failed manual refresh lost stale data or changed section freshness")
+                } else if (service.lastSuccess <= root.beforeManualRefresh.stats || service.errorKind !== "") {
+                    throw new Error("Manual Refresh did not publish fresh data")
+                }
+                console.log("NATIVE_SMOKE_PASS " + root.mode)
+                Qt.quit()
+                return
+            }
             if (root.stage < 2) {
                 first.toggle()
                 first.tabIndex = 2
@@ -252,8 +268,12 @@ ShellRoot {
             if (first.popupOpen) throw new Error("Native dismissal callback failed")
             first.toggle()
             if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Reopen did not reset Stats and seven days")
-            console.log("NATIVE_SMOKE_PASS success")
-            Qt.quit()
+            root.beforeManualRefresh = { stats: service.lastSuccess, repositories: service.repositories.lastSuccess,
+                prs: service.prs.lastSuccess, issues: service.issues.lastSuccess }
+            root.stage = 8
+            root.settledState = null
+            textItem(popup.contentItem[0], "Refresh").clicked()
+            if (!service.refreshing) throw new Error("Manual Refresh did not start")
         } catch (error) {
             console.error("Native smoke failed: " + error.message)
             smokeTimer.stop()
