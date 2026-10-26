@@ -7,7 +7,8 @@ Item {
     id: root
 
     property double now: Date.now()
-    property var model: new Model.Service(now)
+    // Keep construction independent of the ticking clock's QML binding.
+    property var model: new Model.Service(Date.now())
     readonly property var identity: model.identity
     readonly property var calendar: model.calendar
     readonly property var todayCount: model.todayCount(now)

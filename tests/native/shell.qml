@@ -9,6 +9,7 @@ ShellRoot {
     id: root
     property int stage: 0
     property var keyboardTester: null
+    property var settledState: null
     readonly property string mode: Quickshell.env("STATS_FIXTURE") || "success"
 
     Plugin.Service { id: service }
@@ -62,6 +63,22 @@ ShellRoot {
 
     function check() {
         try {
+            if (root.settledState) {
+                if (service.refreshing) throw new Error("Idle clock tick started an unexpected refresh")
+                if (service.lastSuccess !== root.settledState.lastSuccess
+                    || service.retryAt !== root.settledState.retryAt
+                    || service.errorKind !== root.settledState.errorKind)
+                    throw new Error("Idle clock tick discarded published service state")
+                if (service.now < root.settledState.at + 2000) return
+            } else if (!service.refreshing) {
+                // Observe the real service across multiple one-second ticks,
+                // including cached data and rate-limit/error state.
+                root.settledState = {
+                    at: service.now, lastSuccess: service.lastSuccess,
+                    retryAt: service.retryAt, errorKind: service.errorKind
+                }
+                return
+            }
             if (service.refreshing) {
                 // Many monitor/manual triggers must remain one transaction.
                 if (root.stage === 0) { service.refresh(); service.refresh(); root.stage = 1 }
