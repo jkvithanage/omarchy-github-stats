@@ -36,6 +36,14 @@ All six native modes passed: `success`, `stale`, `auth`, `network`, `rate`, `han
 
 ## Remaining manual evidence
 
+### Follow-up on 2026-10-27
+
+An isolated popup using the unchanged production widget and fixture account data was inspected on the native compositor. Its seven UTC dates, visible counts, activity summaries, repository snapshots, layout, and focus outline rendered visibly. Native virtual-pointer movement over the first tile selected `2026-10-20` in the date-detail state. This adds visual and hover-path evidence; it does not establish physical keyboard or pointer-button behavior.
+
+Injected keyboard and click events did not reliably activate the fixture controls. A temporary focus-capture experiment also failed to establish a valid grabbing popup, so it was discarded without changing production code. These probe results do not establish a widget defect or a passed keyboard/dismissal check. The available computer-use interface exposes browser tabs but no native desktop apps, so the remaining physical-input checks still require desktop observations. Temporary probes were stopped and desktop-region captures removed.
+
+The physical-check request is pending. Issue #7 remains open and `ready-for-human`; no pending acceptance item has been marked passed.
+
 The following are **not verified** by this run:
 
 - Physical Tab/arrow traversal and visible focus in the live installed bar, plus screen-reader announcement quality.
