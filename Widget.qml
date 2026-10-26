@@ -17,6 +17,8 @@ BarWidget {
     readonly property string period: ["week", "month", "year"][periodIndex]
     readonly property var selectedStats: service && service.stats ? service.stats.periods[period] : null
     readonly property var detailDay: service && service.calendar ? service.calendar[detailDate] : null
+    readonly property var repositoryState: service ? service.repositories : null
+    readonly property var repositorySnapshot: repositoryState ? repositoryState.data : null
     readonly property string countText: service && service.todayCount !== null ? String(service.todayCount) : "—"
     readonly property string description: "GitHub: " + (countText === "—" ? "today's contributions unavailable" : countText + " contributions today (UTC)")
 
@@ -215,15 +217,79 @@ BarWidget {
                     font.pixelSize: Style.font.body
                 }
 
-                Text {
+                Column {
                     visible: root.tabIndex === 0
                     width: parent.width
-                    text: "Stars and repository languages are not available yet."
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                    color: Commons.Color.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.bodySmall
+                    spacing: Style.space(8)
+                    Text {
+                        width: parent.width
+                        text: "Current repository snapshots · all periods"
+                        wrapMode: Text.Wrap
+                        color: Commons.Color.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.body
+                    }
+                    Text {
+                        width: parent.width
+                        text: root.repositorySnapshot ? "Stars: " + root.repositorySnapshot.stars : "Stars: —"
+                        color: Commons.Color.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.body
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: text
+                    }
+                    Text {
+                        width: parent.width
+                        text: "Repository languages (code bytes)"
+                        wrapMode: Text.Wrap
+                        color: Commons.Color.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.body
+                    }
+                    Repeater {
+                        model: root.repositorySnapshot ? root.repositorySnapshot.languages : []
+                        Text {
+                            required property var modelData
+                            width: parent.width
+                            text: modelData.name + ": " + modelData.percentage.toFixed(1) + "% · " + modelData.bytes + " bytes"
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            color: Commons.Color.foreground
+                            font.family: Style.font.family
+                            font.pixelSize: Style.font.bodySmall
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: text
+                        }
+                    }
+                    Text {
+                        visible: !root.repositorySnapshot || root.repositorySnapshot.totalBytes === 0
+                        width: parent.width
+                        text: root.repositorySnapshot ? "No repository language bytes reported."
+                            : root.repositoryState && root.repositoryState.errorKind ? "Repository snapshots unavailable. See refresh status below."
+                            : root.service && root.service.refreshing ? "Loading complete repository snapshots…" : "Repository snapshots have not loaded yet."
+                        wrapMode: Text.Wrap
+                        color: Commons.Color.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.bodySmall
+                    }
+                    Text {
+                        width: parent.width
+                        text: "Personally owned public and accessible private repositories, excluding forks; includes archived repositories. Language shares describe repository contents."
+                        wrapMode: Text.Wrap
+                        color: Commons.Color.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.bodySmall
+                    }
+                    Text {
+                        visible: root.repositoryState && root.repositoryState.lastSuccess > 0
+                        width: parent.width
+                        text: root.repositoryState ? "Repository snapshot updated: " + new Date(root.repositoryState.lastSuccess).toLocaleString()
+                            + (root.repositoryState.stale ? " · stale" : "") : ""
+                        wrapMode: Text.Wrap
+                        color: Commons.Color.foreground
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.caption
+                    }
                 }
 
                 Text {

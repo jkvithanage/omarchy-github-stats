@@ -6,7 +6,7 @@ The bar shows a GitHub icon and today's contribution count. Its popup has three 
 
 ## Project status
 
-The bar shows today's UTC contribution count. Stats offers 7 days, 30 days, and 12 months, with Sunday-first calendar layouts, themed contribution levels, hover/keyboard date details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Switching periods uses the same cached snapshot; reopening the popup resets to 7 days. Incomplete responses preserve the last complete snapshot as stale. Repository snapshots and work previews are not implemented yet; the popup labels them as unavailable.
+The bar shows today's UTC contribution count. Stats offers 7 days, 30 days, and 12 months, with Sunday-first calendar layouts, themed contribution levels, hover/keyboard date details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Switching periods uses the same cached snapshot; reopening the popup resets to 7 days. Current repository snapshots show Stars and the top five Repository languages plus Other, using complete repository/language pagination across personally owned public and accessible private repositories, excluding forks and including archives. Each section retains its previous complete result as stale on failure. Work previews are not implemented yet; the popup labels them as unavailable.
 
 ## Installation
 

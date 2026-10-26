@@ -8,6 +8,12 @@ var calendarQuery = "query($login: String!, $from: DateTime!, $weekFrom: DateTim
     + "weeks { contributionDays { date contributionCount contributionLevel } } } } "
     + "week: contributionsCollection(from: $weekFrom, to: $to) { " + summaryFields + "} "
     + "month: contributionsCollection(from: $monthFrom, to: $to) { " + summaryFields + "} } }";
+var languageFields = "languages(first: 100, after: $languageCursor) { totalCount pageInfo { hasNextPage endCursor } edges { size node { name } } } ";
+var repositoryQuery = "query($login: String!, $cursor: String, $languageCursor: String) { viewer { id login } user(login: $login) { id login "
+    + "repositories(first: 100, after: $cursor, ownerAffiliations: [OWNER], isFork: false) { totalCount pageInfo { hasNextPage endCursor } "
+    + "nodes { id owner { id login } isFork stargazerCount " + languageFields + "} } } }";
+var languageQuery = "query($id: ID!, $languageCursor: String!) { viewer { id login } node(id: $id) { ... on Repository { "
+    + "id owner { id login } isFork " + languageFields + "} } }";
 
 function utcDate(now) { return new Date(now).toISOString().slice(0, 10); }
 
@@ -159,10 +165,90 @@ function calendarLayout(days, period) {
         rows: period === "year" ? 7 : cells.length / 7, cells: cells, months: months };
 }
 
+function pageState() { return { total: null, count: 0, cursor: "", more: true, cursors: Object.create(null) }; }
+
+function readPage(connection, items, state) {
+    if (!connection || !Array.isArray(items) || !validCount(connection.totalCount) || !connection.pageInfo
+        || typeof connection.pageInfo.hasNextPage !== "boolean") return false;
+    if (state.total !== null && state.total !== connection.totalCount) return false;
+    state.total = connection.totalCount;
+    state.count += items.length;
+    state.more = connection.pageInfo.hasNextPage;
+    if (state.more) {
+        var cursor = connection.pageInfo.endCursor;
+        if (!items.length || state.count >= state.total || typeof cursor !== "string" || !cursor || state.cursors[cursor]) return false;
+        state.cursors[cursor] = true;
+        state.cursor = cursor;
+    }
+    return state.more ? state.count < state.total : state.count === state.total;
+}
+
+function RepositoryScan(identity) {
+    this.identity = identity;
+    this.page = pageState();
+    this.seen = Object.create(null);
+    this.pendingLanguages = [];
+    this.bytes = Object.create(null);
+    this.stars = 0;
+    this.repositoryCount = 0;
+}
+
+RepositoryScan.prototype.languages = function(connection, repository) {
+    if (!readPage(connection, connection && connection.edges, repository.page)) return false;
+    for (var i = 0; i < connection.edges.length; i++) {
+        var edge = connection.edges[i];
+        var name = edge && edge.node && edge.node.name;
+        if (typeof name !== "string" || !name || repository.seen[name] || !validCount(edge.size)) return false;
+        repository.seen[name] = true;
+        this.bytes[name] = (this.bytes[name] || 0) + edge.size;
+    }
+    return true;
+};
+
+RepositoryScan.prototype.repositories = function(connection) {
+    if (!readPage(connection, connection && connection.nodes, this.page)) return false;
+    for (var i = 0; i < connection.nodes.length; i++) {
+        var node = connection.nodes[i];
+        if (!node || typeof node.id !== "string" || !node.id || this.seen[node.id]
+            || !validIdentity(node.owner) || typeof node.isFork !== "boolean") return false;
+        this.seen[node.id] = true;
+        if (node.isFork || !sameIdentity(this.identity, node.owner)) continue;
+        if (!validCount(node.stargazerCount)) return false;
+        this.stars += node.stargazerCount;
+        this.repositoryCount++;
+        var repository = { id: node.id, page: pageState(), seen: Object.create(null) };
+        if (!this.languages(node.languages, repository)) return false;
+        if (repository.page.more) this.pendingLanguages.push(repository);
+    }
+    return true;
+};
+
+RepositoryScan.prototype.next = function() {
+    if (this.page.more) return { kind: "repositories", cursor: this.page.cursor };
+    var repository = this.pendingLanguages[0];
+    return repository ? { kind: "languages", id: repository.id, cursor: repository.page.cursor } : null;
+};
+
+RepositoryScan.prototype.snapshot = function() {
+    var bytes = this.bytes;
+    var languages = Object.keys(bytes).map(function(name) { return { name: name, bytes: bytes[name] }; });
+    languages.sort(function(a, b) { return b.bytes - a.bytes || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
+    var total = languages.reduce(function(sum, language) { return sum + language.bytes; }, 0);
+    var top = languages.slice(0, 5);
+    var other = languages.slice(5).reduce(function(sum, language) { return sum + language.bytes; }, 0);
+    if (other > 0) top.push({ name: "Other", bytes: other });
+    top.forEach(function(language) { language.percentage = total ? language.bytes / total * 100 : 0; });
+    return { stars: this.stars, repositoryCount: this.repositoryCount, totalBytes: total, languages: total ? top : [] };
+};
+
+function repositoryState() { return { data: null, lastSuccess: 0, stale: false, errorKind: "" }; }
+
 function Service(now) {
     this.identity = null;
     this.calendar = null;
     this.stats = null;
+    this.repositories = repositoryState();
+    this.repositoryScan = null;
     this.lastSuccess = 0;
     this.stale = false;
     this.errorKind = "";
@@ -189,17 +275,41 @@ Service.prototype.clearAccount = function() {
     this.identity = null;
     this.calendar = null;
     this.stats = null;
+    this.repositories = repositoryState();
+    this.repositoryScan = null;
     this.lastSuccess = 0;
     this.stale = false;
 };
 
 Service.prototype.fail = function(kind, now) {
+    var repositoryFailure = this.active && (this.active.kind === "repositories" || this.active.kind === "languages");
     this.active = null;
+    this.repositoryScan = null;
     this.errorKind = kind;
-    this.stale = this.calendar !== null;
+    if (!repositoryFailure) this.stale = this.calendar !== null;
+    this.repositories = { data: this.repositories.data, lastSuccess: this.repositories.lastSuccess,
+        stale: this.repositories.data !== null, errorKind: kind };
     this.nextRefresh = kind === "rate-limit" ? this.retryAt : now + refreshInterval;
     this.rolloverPending = false;
     if (kind === "authentication" || kind === "account") this.clearAccount();
+    return null;
+};
+
+Service.prototype.repositoryRequest = function(step, at) {
+    var fields = step.kind === "repositories" ? { login: this.identity.login } : { id: step.id, languageCursor: step.cursor };
+    if (step.kind === "repositories" && step.cursor) fields.cursor = step.cursor;
+    this.active = { id: ++this.serial, kind: step.kind, at: at, identity: this.identity,
+        command: command(step.kind === "repositories" ? repositoryQuery : languageQuery, fields) };
+    return this.active;
+};
+
+Service.prototype.finishRefresh = function(now) {
+    this.active = null;
+    this.nextRefresh = now + refreshInterval;
+    if (this.rolloverPending) {
+        this.rolloverPending = false;
+        return this.refresh(now);
+    }
     return null;
 };
 
@@ -228,8 +338,25 @@ Service.prototype.complete = function(id, result, now) {
                 to: new Date(request.at).toISOString() }) };
         return this.active;
     }
-    if (!sameIdentity(request.identity, data.viewer) || !sameIdentity(request.identity, data.user))
+    if (!sameIdentity(request.identity, data.viewer)
+        || request.kind !== "languages" && !sameIdentity(request.identity, data.user))
         return this.fail("account", now);
+    if (request.kind === "repositories" || request.kind === "languages") {
+        var valid;
+        if (request.kind === "repositories") valid = this.repositoryScan.repositories(data.user.repositories);
+        else {
+            var repository = this.repositoryScan.pendingLanguages[0];
+            valid = data.node && data.node.id === repository.id && data.node.isFork === false
+                && sameIdentity(request.identity, data.node.owner) && this.repositoryScan.languages(data.node.languages, repository);
+            if (valid && !repository.page.more) this.repositoryScan.pendingLanguages.shift();
+        }
+        if (!valid) return this.fail("response", now);
+        var step = this.repositoryScan.next();
+        if (step) return this.repositoryRequest(step, request.at);
+        this.repositories = { data: this.repositoryScan.snapshot(), lastSuccess: now, stale: false, errorKind: "" };
+        this.repositoryScan = null;
+        return this.finishRefresh(now);
+    }
     var days = calendarDays(data.user);
     if (days === null) return this.fail("response", now);
     var stats = accountStats(days, data.user, request.at);
@@ -240,13 +367,8 @@ Service.prototype.complete = function(id, result, now) {
     this.stale = false;
     this.errorKind = "";
     this.retryAt = 0;
-    this.active = null;
-    this.nextRefresh = now + refreshInterval;
-    if (this.rolloverPending) {
-        this.rolloverPending = false;
-        return this.refresh(now);
-    }
-    return null;
+    this.repositoryScan = new RepositoryScan(this.identity);
+    return this.repositoryRequest(this.repositoryScan.next(), request.at);
 };
 
 Service.prototype.tick = function(now) {
@@ -259,7 +381,7 @@ Service.prototype.tick = function(now) {
 };
 
 Service.prototype.statusText = function(now) {
-    if (this.active) return "Refreshing GitHub contributions…";
+    if (this.active) return "Refreshing GitHub activity…";
     var messages = {
         gh: "GitHub CLI is missing or nonfunctional. Check gh on the shell's PATH.",
         authentication: "Authentication needed: run gh auth login --hostname github.com in a terminal.",
