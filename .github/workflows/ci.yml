@@ -3,8 +3,14 @@ name: CI
 on:
   pull_request:
     branches: [master]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   push:
     branches: [master]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 permissions:
   contents: read
@@ -37,7 +43,7 @@ jobs:
       - name: Validate workflow and whitespace
         run: |
           actionlint
-          git diff --check HEAD^ HEAD
+          git -C "$GITHUB_WORKSPACE" diff --check HEAD^ HEAD
 
       - name: Check PR branch name
         if: github.event_name == 'pull_request'
