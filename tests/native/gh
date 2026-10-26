@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 
 args = sys.argv[1:]
 assert args[:5] == ["api", "--hostname", "github.com", "--include", "graphql"]
@@ -12,6 +13,12 @@ assert os.environ.get("GH_PROMPT_DISABLED") == "1"
 assert "GH_DEBUG" not in os.environ
 time.sleep(0.1)
 mode = os.environ.get("STATS_FIXTURE", "success")
+if mode == "stale" and "query=query { viewer { id login } }" in args:
+    control = Path(os.environ["STATS_FIXTURE_CONTROL"])
+    if control.exists():
+        print("error connecting to api.github.com", file=sys.stderr)
+        sys.exit(1)
+    control.write_text("fixture identity already loaded")
 if mode == "hang":
     time.sleep(60)
 if mode == "auth":

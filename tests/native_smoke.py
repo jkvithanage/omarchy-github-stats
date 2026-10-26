@@ -26,9 +26,9 @@ with tempfile.TemporaryDirectory(prefix="github-stats-native-") as temporary:
     display = env.get("WAYLAND_DISPLAY", "wayland-1")
     if not display.startswith("/"):
         env["WAYLAND_DISPLAY"] = str(Path(os.environ["XDG_RUNTIME_DIR"]) / display)
-    for mode in ("success", "auth", "network", "rate", "hang"):
+    for mode in ("success", "stale", "auth", "network", "rate", "hang"):
         result = subprocess.run(["qs", "-p", str(stage / "shell.qml"), "--no-color"],
-                                env=dict(env, STATS_FIXTURE=mode), text=True,
+                                env=dict(env, STATS_FIXTURE=mode, STATS_FIXTURE_CONTROL=str(stage / "stale-control")), text=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=38)
         output = result.stdout
         if result.returncode or f"NATIVE_SMOKE_PASS {mode}" not in output or "private-response-sentinel" in output or "ERROR" in output or "Error:" in output:
