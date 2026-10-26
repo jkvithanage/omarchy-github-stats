@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Checks
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      QT_QUICK_BACKEND: software
+    steps:
+      - name: Install check tools
+        run: pacman -Syu --noconfirm --needed actionlint git jq make nodejs python qt6-declarative quickshell
+
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Validate workflow and whitespace
+        run: |
+          actionlint
+          git diff --check HEAD^ HEAD
+
+      - name: Check PR branch name
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          ticket='^(feat|fix|docs|chore)/[1-9][0-9]*-[a-z0-9]+(-[a-z0-9]+)*$'
+          maintenance='^(docs|chore)/[a-z0-9]+(-[a-z0-9]+)*$'
+          if [[ ! "$HEAD_REF" =~ $ticket && ! "$HEAD_REF" =~ $maintenance ]]; then
+            echo '::error::Use type/number-slug for tickets, or docs/slug or chore/slug for unticketed maintenance.'
+            exit 1
+          fi
+
+      - name: Check plugin against Omarchy 4.0.6
+        if: hashFiles('manifest.json') != ''
+        env:
+          OMARCHY_PATH: ${{ runner.temp }}/omarchy
+        run: |
+          git init "$OMARCHY_PATH"
+          git -C "$OMARCHY_PATH" remote add origin https://github.com/basecamp/omarchy.git
+          git -C "$OMARCHY_PATH" sparse-checkout set shell bin
+          git -C "$OMARCHY_PATH" fetch --depth 1 --filter=blob:none origin 237f1b4071a0bff2296c6d740ba2b9fd695ebfa0
+          git -C "$OMARCHY_PATH" checkout --detach FETCH_HEAD
+          make check

@@ -13,6 +13,10 @@ Do not use for: refactoring, writing scripts from scratch, debugging business lo
 
 ## Agent skills
 
+### Git workflow
+
+Before starting a branch, committing, pushing, opening a PR, or merging, read `docs/agents/git-workflow.md`.
+
 ### Issue tracker
 
 Track issues and specs in GitHub Issues for `jkvithanage/omarchy-github-stats`. Before reading or publishing tickets, read `docs/agents/issue-tracker.md`.
