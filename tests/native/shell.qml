@@ -12,12 +12,15 @@ ShellRoot {
     property var settledState: null
     property string openedUrl: ""
     property var beforeManualRefresh: null
+    property real regularWidth: 0
+    property real annualBrowseX: 0
+    property var captured: ({})
+    property bool capturePending: false
     readonly property string mode: Quickshell.env("STATS_FIXTURE") || "success"
 
     Plugin.Service { id: service }
     Plugin.WorkList {
         id: linkProbe
-        visible: false
         width: 300
         section: service.prs
         refreshing: service.refreshing
@@ -26,7 +29,6 @@ ShellRoot {
     }
     Plugin.WorkList {
         id: issueLinkProbe
-        visible: false
         width: 300
         section: service.issues
         refreshing: service.refreshing
@@ -54,8 +56,13 @@ ShellRoot {
         implicitWidth: 420
         implicitHeight: 32
         color: "#202020"
-        Plugin.Widget { id: first; bar: bar; anchors.left: parent.left }
-        Plugin.Widget { id: second; bar: bar; anchors.right: parent.right }
+        Item {
+            id: barContent
+            anchors.fill: parent
+            Plugin.Widget { id: first; bar: bar; anchors.left: parent.left }
+            WidgetButton { bar: bar; text: ""; anchors.centerIn: parent }
+            Plugin.Widget { id: second; bar: bar; anchors.right: parent.right }
+        }
     }
     Timer {
         id: smokeTimer
@@ -90,7 +97,20 @@ ShellRoot {
         return null
     }
 
+    function capture(item, name) {
+        var directory = Quickshell.env("STATS_CAPTURE_DIR")
+        if (!directory || root.captured[name]) return false
+        root.captured[name] = true
+        root.capturePending = true
+        if (!item.grabToImage(function(result) {
+            result.saveToFile(directory + "/" + name + ".png")
+            root.capturePending = false
+        })) root.capturePending = false
+        return root.capturePending
+    }
+
     function check() {
+        if (root.capturePending) return
         try {
             if (root.settledState) {
                 if (service.refreshing) throw new Error("Idle clock tick started an unexpected refresh")
@@ -135,6 +155,15 @@ ShellRoot {
                 } else if (service.lastSuccess <= root.beforeManualRefresh.stats || service.errorKind !== "") {
                     throw new Error("Manual Refresh did not publish fresh data")
                 }
+                var refreshedContent = popupFor(first).contentItem[0]
+                if (Math.abs(namedItem(refreshedContent, "contribution-chart").contentX - root.annualBrowseX) > 1)
+                    throw new Error("Refresh reset annual browsing")
+                if (root.mode === "stale" && (!namedItem(refreshedContent, "stats-stale").visible
+                    || !namedItem(refreshedContent, "repositories-stale").visible
+                    || !namedItem(refreshedContent, "refresh-status").visible))
+                    throw new Error("Section-specific stale states or failure guidance missing")
+                if (root.mode === "success" && namedItem(refreshedContent, "refresh-status").visible)
+                    throw new Error("Healthy footer retained redundant status")
                 console.log("NATIVE_SMOKE_PASS " + root.mode)
                 Qt.quit()
                 return
@@ -159,10 +188,23 @@ ShellRoot {
             }
             if (root.stage === 3) {
                 var scrollContent = popup.contentItem[0]
+                if (root.capture(barContent, "bar") || root.capture(scrollContent, "week")) return
+                root.regularWidth = popup.contentWidth
+                var trigger = namedItem(first, "github-trigger")
+                if (!trigger || trigger.implicitHeight !== bar.barSize || trigger.tooltipText !== ""
+                    || !trigger.activeFocusOnTab || trigger.Accessible.name.indexOf("8 contributions") < 0)
+                    throw new Error("Native horizontal bar sizing or accessible trigger missing")
+                bar.vertical = true
+                if (trigger.implicitWidth !== bar.barSize) throw new Error("Native vertical bar width mismatch")
+                bar.vertical = false
                 if (!textItem(scrollContent, "7 days") || !textItem(scrollContent, "Contributions: 8")
-                    || !textItem(scrollContent, "Commit contributions: 3") || !textItem(scrollContent, "PRs authored: 2")
-                    || !textItem(scrollContent, "Issues authored: 1")) throw new Error("Seven-day Stats missing")
-                if (!textItem(scrollContent, "Stars: 12") || !textItem(scrollContent, "JavaScript: 60.0% · 60 bytes")
+                    || !textItem(scrollContent, "Commits: 3") || !textItem(scrollContent, "PRs: 2")
+                    || !textItem(scrollContent, "Issues: 1")
+                    || namedItem(scrollContent, "metric-Commits").Accessible.name.indexOf("Commit contributions") < 0
+                    || namedItem(scrollContent, "calendar-info").Accessible.description.indexOf("UTC") < 0)
+                    throw new Error("Compact accessible seven-day Stats missing")
+                if (!textItem(scrollContent, "  12 stars") || !textItem(scrollContent, "JavaScript: 60.0%")
+                    || namedItem(scrollContent, "language-JavaScript").Accessible.description.indexOf("60 GitHub-reported language bytes") < 0
                     || service.repositories.data.repositoryCount !== 2)
                     throw new Error("Complete repository snapshots missing")
                 var date = service.stats.periods.week.days[0].date
@@ -173,8 +215,11 @@ ShellRoot {
                 if (!tile.activeFocus) throw new Error("Tile did not receive native focus")
                 var nextTile = namedItem(scrollContent, "contribution-" + service.stats.periods.week.days[1].date)
                 nextTile.forceActiveFocus()
-                var details = namedItem(scrollContent, "contribution-details")
-                if (!details || details.text.indexOf(service.stats.periods.week.days[1].date) < 0)
+                var details = null
+                for (var t = 0; t < nextTile.data.length; t++) {
+                    if (nextTile.data[t].objectName === "contribution-tooltip") details = nextTile.data[t]
+                }
+                if (!details || !details.visible || details.text.indexOf(service.stats.periods.week.days[1].date) < 0)
                     throw new Error("Focus details missing")
                 var stats = textItem(popup.contentItem[0], "Stats")
                 stats.forceActiveFocus()
@@ -182,11 +227,25 @@ ShellRoot {
                     throw new Error("Native tab focus is unavailable")
                 var monthControl = textItem(scrollContent, "30 days")
                 if (!monthControl || !monthControl.focusable) throw new Error("Period controls missing")
+                var preview = JSON.parse(JSON.stringify(service.prs))
+                preview.data.groups[0].total = 42
+                var extraRow = JSON.parse(JSON.stringify(preview.data.groups[0].rows[0]))
+                extraRow.id = "preview-extra"
+                extraRow.number = 3
+                extraRow.title = "Extra preview row"
+                preview.data.groups[0].rows.push(extraRow)
+                preview.stale = true
+                preview.errorKind = "network"
+                linkProbe.section = preview
                 monthControl.clicked()
                 root.stage = 4
                 return
             }
             if (root.stage === 4) {
+                if (!textItem(linkProbe, "Authored · 2 of 42 shown") || !namedItem(linkProbe, "work-stale").visible
+                    || !namedItem(linkProbe, "work-row-separator").visible)
+                    throw new Error("Truncated preview total or independent work stale state missing")
+                if (root.capture(popup.contentItem[0], "month")) return
                 if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)
                     throw new Error("Thirty-day period selection failed")
                 var monthChart = namedItem(popup.contentItem[0], "contribution-chart")
@@ -195,9 +254,14 @@ ShellRoot {
                 first.tabIndex = 1
                 var prList = namedItem(popup.contentItem[0], "pr-work-list")
                 if (!prList || !prList.visible || !textItem(prList, "Fixture PR 1")
-                    || !textItem(prList, "Authored PRs · 1 total · showing 1")
-                    || !textItem(prList, "Review requests from other authors · 1 total · showing 1"))
+                    || !textItem(prList, "Authored · 1")
+                    || !textItem(prList, "Review requests · 1"))
                     throw new Error("PR work previews missing")
+                if (root.capture(popup.contentItem[0], "prs")) return
+                var authoredLink = textItem(prList, "Open #1")
+                if (authoredLink.Accessible.name.indexOf("Draft") < 0 || authoredLink.Accessible.name.indexOf("Private") < 0
+                    || authoredLink.Accessible.name.indexOf("Review requested") < 0 || authoredLink.iconText === "" || authoredLink.tooltipText === "")
+                    throw new Error("Draft/private/overlapping role or external-link affordance missing")
                 var itemLink = textItem(linkProbe, "Open #1")
                 if (!itemLink || !itemLink.focusable) throw new Error("Keyboard item link missing")
                 itemLink.clicked()
@@ -208,8 +272,9 @@ ShellRoot {
                 first.tabIndex = 2
                 var issueList = namedItem(popup.contentItem[0], "issue-work-list")
                 if (!issueList || !issueList.visible || !textItem(issueList, "Fixture Issue 1")
-                    || !textItem(issueList, "Assignments from other authors · 1 total · showing 1"))
+                    || !textItem(issueList, "Assigned · 1"))
                     throw new Error("Issue work previews missing")
+                if (root.capture(popup.contentItem[0], "issues")) return
                 textItem(issueLinkProbe, "Open #1").clicked()
                 if (root.openedUrl !== "https://github.com/fixture/repo/issues/1") throw new Error("Issue URL mismatch")
                 textItem(issueLinkProbe, "View all").clicked()
@@ -226,13 +291,32 @@ ShellRoot {
                 if (first.periodIndex !== 2 || first.selectedStats.days.length < 365
                     || annualChart.layout.rows !== 7 || annualChart.layout.months.length < 12)
                     throw new Error("Annual calendar layout missing")
+                if (root.capture(popup.contentItem[0], "annual")) return
+                var savedRepositoryState = service.model.repositories
+                service.model.repositories = { data: savedRepositoryState.data, lastSuccess: savedRepositoryState.lastSuccess,
+                    stale: true, errorKind: "network" }
+                service.modelChanged()
+                if (!namedItem(popup.contentItem[0], "repositories-stale").visible
+                    || namedItem(popup.contentItem[0], "stats-stale").visible)
+                    throw new Error("Independently stale repository state was hidden or staled Activity")
+                service.model.repositories = savedRepositoryState
+                service.modelChanged()
+                if (annualChart.preferredWidth > annualChart.width + 1 || popup.contentWidth <= root.regularWidth)
+                    throw new Error("Annual popup did not fit all actual calendar columns and insets")
+                first.tabIndex = 1
+                if (popup.contentWidth !== root.regularWidth) throw new Error("Annual width leaked into work tabs")
+                first.tabIndex = 0
                 var lastDate = first.selectedStats.days[first.selectedStats.days.length - 1].date
                 var lastTile = namedItem(annualChart, "contribution-" + lastDate)
                 lastTile.forceActiveFocus()
-                if (annualChart.contentX <= 0) throw new Error("Annual focus did not reveal the date horizontally")
+                if (annualChart.contentX > 1) throw new Error("Fitted annual calendar unexpectedly overflowed")
+                if (root.capture(annualChart, "focused-annual")) return
                 var previousWeek = first.selectedStats.days[first.selectedStats.days.length - 8].date
                 namedItem(annualChart, "contribution-" + previousWeek).forceActiveFocus()
+                // Re-enter annual after constraining the card, so newest-first initialization runs.
+                first.periodIndex = 0
                 popup.contentWidth = popup.fittedContentWidth(370, 220)
+                first.periodIndex = 2
                 popup.contentHeight = popup.fittedContentHeight(400, 160)
                 Commons.Color.foreground = "#ffddaa"
                 root.stage = 6
@@ -244,13 +328,23 @@ ShellRoot {
                     throw new Error("Constrained popup does not scroll")
                 var title = textItem(scroll, "GitHub Stats · fixture")
                 if (!title || String(title.color) !== "#ffddaa") throw new Error("Theme binding did not update")
+                var narrowChart = namedItem(scroll, "contribution-chart")
+                if (!root.captured["narrow"]) {
+                    if (root.capture(narrowChart, "narrow")) return
+                }
+                if (Math.abs(narrowChart.contentX - (narrowChart.preferredWidth - narrowChart.width)) > 1)
+                    throw new Error("Narrow annual view did not start at newest dates: " + narrowChart.contentX + " / " + narrowChart.preferredWidth + " / " + narrowChart.width + " / " + narrowChart.browsed)
                 var upperTile = namedItem(scroll, "contribution-" + first.selectedStats.days[0].date)
                 upperTile.forceActiveFocus()
                 var tooltip = null
                 for (var child = 0; child < upperTile.data.length; child++) {
                     if (upperTile.data[child].objectName === "contribution-tooltip") tooltip = upperTile.data[child]
                 }
-                if (!tooltip || !tooltip.visible || tooltip.width > popup.width
+                if (narrowChart.contentX > 40) throw new Error("Focused oldest tile was not revealed")
+                var newestTile = namedItem(scroll, "contribution-" + first.selectedStats.days[first.selectedStats.days.length - 1].date)
+                newestTile.forceActiveFocus()
+                if (narrowChart.contentX <= 0) throw new Error("Focused newest tile was not revealed")
+                if (!tooltip || tooltip.width > popup.width
                     || tooltip.text.indexOf(first.selectedStats.days[0].date) < 0)
                     throw new Error("Constrained tile tooltip details missing")
                 first.tabIndex = 1
@@ -272,8 +366,14 @@ ShellRoot {
                 prs: service.prs.lastSuccess, issues: service.issues.lastSuccess }
             root.stage = 8
             root.settledState = null
-            textItem(popup.contentItem[0], "Refresh").clicked()
-            if (!service.refreshing) throw new Error("Manual Refresh did not start")
+            first.periodIndex = 2
+            Qt.callLater(function() {
+                var browsing = namedItem(popup.contentItem[0], "contribution-chart")
+                browsing.contentX = 96
+                root.annualBrowseX = browsing.contentX
+                namedItem(popup.contentItem[0], "refresh-button").clicked()
+                if (!service.refreshing) throw new Error("Manual Refresh did not start")
+            })
         } catch (error) {
             console.error("Native smoke failed: " + error.message)
             smokeTimer.stop()

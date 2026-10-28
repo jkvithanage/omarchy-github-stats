@@ -59,3 +59,25 @@ For a release or host upgrade, open the installed widget, Tab through tabs/perio
 ## Source and permission audit
 
 Tickets #2–#7 introduce no copied upstream implementation or helper dependencies. Native host components are imported; credentials remain owned by `gh`. No GitHub mutations, interactive shell login, token extraction/storage, private-response logging, or account-data persistence were added. Substantial future reuse from `omarchy-ghstats` must preserve its MIT notice.
+
+## Appearance cleanup — 2026-10-28 (#17)
+
+Specification: [#17](https://github.com/jkvithanage/omarchy-github-stats/issues/17). This follow-up changes presentation only; `Service.qml`, `ServiceModel.js`, the GitHub queries, and the glossary's UTC calendar definition are unchanged.
+
+`make check` passed: all 23 service/model fixtures, 9 Qt test cases including setup/cleanup (4 heatmap behavior cases and the service runtime case), QML lint, and manifest validation. Lint still reports dynamic host/theme-property warnings; it is not warning-free. `git diff --check` passed.
+
+`make smoke` passed all six native modes (`success`, `stale`, `auth`, `network`, `rate`, `hang`) on the installed Omarchy/Qt environment above. The native run requires access to the Wayland compositor outside the filesystem/network sandbox. The fixture adapter never contacts GitHub.
+
+| Acceptance condition | Evidence |
+| --- | --- |
+| Native bar sizing, no hover tooltip | Native WidgetButton has horizontal height / vertical width equal to the bar size, an empty tooltip, a contribution-bearing accessible name, and a Tab target. Fixture render shows the GitHub glyph/count aligned with a neighboring native volume glyph. |
+| Compact short heatmaps | Qt tests verify weekday/date labels omit counts in both periods, with full date/count in hover and focus tooltips and accessible names. Arrow navigation and padding exclusion pass. |
+| Annual fit and responsive width | Native annual Stats fits the actual calendar columns plus weekday gutter and popup insets. Work tabs return to normal width. The capped 220×160 popup scrolls; annual overflow initially shows newest dates. Qt tests check 10-unit squares, 3-unit gaps, full-width fit, period entry, and non-overlapping visible month labels. Labels without enough room in a partial edge month are omitted. |
+| Preserve browsing and reveal focus | Qt snapshot replacement and real successful/failed native refreshes retain the browsed annual offset. Native focus reveals oldest and newest dates under the narrow cap; Qt tests send arrows across annual columns/rows. |
+| Stats and explanations | Native assertions check the compact metric values, precise contribution/authorship names, UTC calendar accessible explanation, current stars, language percentages and byte explanations. Supplemental InfoText explanations support both hover and focus. |
+| Work presentation and links | Both native tabs retain correct item/View all URLs, draft/private/overlapping-role names and external-link affordances. A separate two-row probe verifies `2 of 42 shown`, an item separator, and a stale work timestamp. |
+| Independent freshness and errors | A repository-only stale probe leaves Activity fresh and displays its own stale timestamp. Failed manual refresh retains every section's data/timestamp and visible stale/failure guidance; successful refresh hides redundant healthy status. Authentication/network/rate/timeout modes still pass. |
+
+Opt-in `STATS_CAPTURE_DIR=/tmp/github-stats-appearance-captures make smoke` renders fixture-only bar, week, month, annual, narrow annual, and work views using Qt's item capture. These renders were inspected for glyph rendering, bar alignment, compact metrics, date labels, annual month spacing, badge wrapping, and native separators. The annual render shows the full calendar; the narrow render shows the latest dates with a horizontal scrollbar. Captures are temporary and contain no production account data. Item captures do not establish physical screen-edge placement or physical input behavior.
+
+The earlier maintainer confirmation applies to the previous presentation. **Physical checks still to repeat for this revision:** installed horizontal/vertical bar appearance, visible focus under physical Tab/arrow input, tooltip readability, Escape/outside-click dismissal, browser activation, and popup placement at screen edges or on a genuinely narrow display. Native geometry, focus mechanics, keyboard events, dismissal callbacks, and links are automated evidence, not a substitute for those observations. Screen-reader announcement quality, a second physical monitor, and a clean interactive installation remain unverified as above.
