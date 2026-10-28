@@ -4,7 +4,7 @@ A native Omarchy bar plugin for personal GitHub contributions, pull requests, an
 
 ## Features and status
 
-V1 features are implemented. See the [verification record](docs/verification.md) for tested versions, evidence, and remaining physical-input and multi-monitor checks.
+V1 features and verification documentation are complete. See the [verification record](docs/verification.md) for tested versions, automated evidence, maintainer-confirmed desktop checks, and remaining screen-reader, multi-monitor, and clean-install verification limits.
 
 - **Stats:** 7 days, 30 days, and 12 months, with Sunday-first contribution heatmaps, theme colors, hover/focus date and count details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Reopening resets to Stats and 7 days; switching tabs retains the period during that opening.
 - **Current repository snapshots:** Stars and the top five Repository languages plus Other, from complete repository/language pagination. The scope is personally owned public and accessible private repositories, excluding forks and including archives. Language shares describe repository code bytes, independently of the Stats period.
