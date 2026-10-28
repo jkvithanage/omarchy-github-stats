@@ -129,7 +129,7 @@ ShellRoot {
         for (var i = 0; i < 30; i++) days.push({
             date: new Date(Date.parse("2026-08-29T00:00:00Z") + i * 86400000).toISOString().slice(0, 10),
             contributionCount: i === 29 ? 8 : 0,
-            contributionLevel: i === 29 ? "SECOND_QUARTILE" : "NONE"
+            contributionLevel: i === 29 ? "FOURTH_QUARTILE" : "NONE"
         })
         stats.periods.month.days = days
         stats.periods.month.from = "2026-08-29T00:00:00Z"

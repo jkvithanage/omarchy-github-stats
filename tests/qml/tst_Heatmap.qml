@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import qs.Commons as Commons
 import "../.." as Plugin
 import "../../ServiceModel.js" as Model
 
@@ -17,6 +18,8 @@ Item {
         when: windowShown
 
         function init() {
+            Commons.Color.foreground = "#eeeeee"
+            Commons.Color.accent = "#6699cc"
             chart.width = 220
             chart.periodStats = null
             chart.initialPositionPending = true
@@ -55,6 +58,21 @@ Item {
                 tryCompare(tooltip, "visible", true)
                 compare(tooltip.text, tile.Accessible.name)
             }
+        }
+
+        function test_month_dates_contrast_with_highest_intensity_and_theme_changes() {
+            chart.period = "month"
+            chart.periodStats = { layout: Model.calendarLayout([
+                { date: "2026-09-01", contributionCount: 8, contributionLevel: "FOURTH_QUARTILE" }
+            ], "month") }
+            Commons.Color.foreground = "#ffffff"
+            Commons.Color.accent = "#ffffff"
+            wait(0)
+            var label = findChild(findChild(chart, "contribution-2026-09-01"), "short-date-label")
+            compare(label.color, Qt.rgba(0, 0, 0, 1))
+            Commons.Color.foreground = "#101010"
+            Commons.Color.accent = "#101010"
+            tryCompare(label, "color", Qt.rgba(1, 1, 1, 1))
         }
 
         function test_six_row_month_keeps_dates_inside_compact_tiles() {

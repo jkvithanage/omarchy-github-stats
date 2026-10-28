@@ -27,6 +27,17 @@ Item {
     implicitHeight: layout ? headerHeight + layout.rows * tileHeight + (layout.rows - 1) * gap + Style.space(annual ? 14 : 4) : 0
     visible: layout !== null
 
+    // Choose the stronger black/white contrast against the actual composited cell fill.
+    function dateInk(fill) {
+        var background = Qt.tint(Commons.Color.background, Commons.Color.popups.background)
+        var rendered = Qt.tint(background, fill)
+        function linear(channel) {
+            return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
+        }
+        var luminance = 0.2126 * linear(rendered.r) + 0.7152 * linear(rendered.g) + 0.0722 * linear(rendered.b)
+        return luminance > 0.179 ? "#000000" : "#ffffff"
+    }
+
     function focusDate(index, step) {
         for (var next = index + step; next >= 0 && next < tiles.count; next += step) {
             var tile = tiles.itemAt(next)
@@ -124,6 +135,9 @@ Item {
                     required property var modelData
                     required property int index
                     readonly property int level: modelData ? ["NONE", "FIRST_QUARTILE", "SECOND_QUARTILE", "THIRD_QUARTILE", "FOURTH_QUARTILE"].indexOf(modelData.contributionLevel) : 0
+                    readonly property color fillColor: level === 0
+                        ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
+                        : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + level * 0.2)
                     objectName: modelData ? "contribution-" + modelData.date : "calendar-padding"
                     x: (root.annual ? Math.floor(index / 7) : index % 7) * (root.tileWidth + root.gap)
                     y: (root.annual ? index % 7 : Math.floor(index / 7)) * (root.tileHeight + root.gap)
@@ -170,8 +184,7 @@ Item {
                         width: parent.width
                         height: root.period !== "week" ? parent.height : Style.space(28)
                         radius: Style.space(root.annual ? 2 : 3)
-                        color: tile.level === 0 ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
-                            : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + tile.level * 0.2)
+                        color: tile.fillColor
                         border.width: tile.activeFocus ? 2 : 0
                         border.color: Commons.Color.foreground
                     }
@@ -186,7 +199,7 @@ Item {
                             ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(tile.modelData.date + "T00:00:00Z").getUTCDay()] + "\n" : "")
                             + tile.modelData.date.slice(8)
                         horizontalAlignment: Text.AlignHCenter
-                        color: Commons.Color.foreground
+                        color: root.period === "month" ? root.dateInk(tile.fillColor) : Commons.Color.foreground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
                     }
