@@ -4,6 +4,7 @@ import qs.Ui
 import qs.Commons
 import qs.Commons as Commons
 import "../.." as Plugin
+import "../../ServiceModel.js" as Model
 
 ShellRoot {
     id: root
@@ -122,6 +123,42 @@ ShellRoot {
                 + " instead of " + root.regularWidth + "×" + root.regularHeight)
     }
 
+    function showLargestStatsFixture() {
+        var stats = JSON.parse(JSON.stringify(service.model.stats))
+        var days = []
+        for (var i = 0; i < 30; i++) days.push({
+            date: new Date(Date.parse("2026-08-29T00:00:00Z") + i * 86400000).toISOString().slice(0, 10),
+            contributionCount: i === 29 ? 8 : 0,
+            contributionLevel: i === 29 ? "SECOND_QUARTILE" : "NONE"
+        })
+        stats.periods.month.days = days
+        stats.periods.month.from = "2026-08-29T00:00:00Z"
+        stats.periods.month.to = "2026-09-27T23:59:59Z"
+        stats.periods.month.layout = Model.calendarLayout(days, "month")
+        if (stats.periods.month.layout.rows !== 6) throw new Error("Largest month fixture must occupy six rows")
+        service.model.stats = stats
+        var repositories = JSON.parse(JSON.stringify(service.model.repositories))
+        repositories.data.languages = [
+            { name: "JavaScript", bytes: 30, percentage: 30 },
+            { name: "Python", bytes: 20, percentage: 20 },
+            { name: "TypeScript", bytes: 15, percentage: 15 },
+            { name: "Jupyter Notebook", bytes: 15, percentage: 15 },
+            { name: "C++", bytes: 10, percentage: 10 },
+            { name: "Other", bytes: 10, percentage: 10 }
+        ]
+        service.model.repositories = repositories
+        service.modelChanged()
+    }
+
+    function assertStatsFit(popup) {
+        var scroll = popup.contentItem[0]
+        if (scroll.contentHeight > scroll.availableHeight + 1)
+            throw new Error("Stats " + first.period + " requires vertical scrolling: " + scroll.contentHeight + " > " + scroll.availableHeight)
+        var refresh = namedItem(scroll, "refresh-button")
+        var bottom = refresh.mapToItem(scroll, 0, refresh.height).y
+        if (bottom > scroll.height + 1) throw new Error("Stats footer is below the viewport")
+    }
+
     function capture(item, name) {
         var directory = Quickshell.env("STATS_CAPTURE_DIR")
         if (!directory || root.captured[name]) return false
@@ -169,6 +206,15 @@ ShellRoot {
             }
             if (service.todayCount !== 8 || service.identity.login !== "fixture") throw new Error("Shared fixture not published")
             if (first.service !== second.service) throw new Error("Widgets do not share a service")
+            if (root.stage === 9) {
+                root.assertStablePopupSize(popupFor(first))
+                root.assertStatsFit(popupFor(first))
+                if (root.capture(popupFor(first).contentItem[0].parent.parent, root.mode + "-" + first.period + "-card")) return
+                if (first.periodIndex < 2) { first.periodIndex++; return }
+                console.log("NATIVE_SMOKE_PASS " + root.mode)
+                Qt.quit()
+                return
+            }
             if (root.stage === 8) {
                 if (root.mode === "stale") {
                     if (service.errorKind !== "network" || !service.stale || !service.repositories.stale || !service.prs.stale || !service.issues.stale
@@ -181,6 +227,7 @@ ShellRoot {
                     throw new Error("Manual Refresh did not publish fresh data")
                 }
                 root.assertStablePopupSize(popupFor(first))
+                root.assertStatsFit(popupFor(first))
                 var refreshedContent = popupFor(first).contentItem[0]
                 if (Math.abs(namedItem(refreshedContent, "contribution-chart").contentX - root.annualBrowseX) > 1)
                     throw new Error("Refresh reset annual browsing")
@@ -190,8 +237,9 @@ ShellRoot {
                     throw new Error("Section-specific stale states or failure guidance missing")
                 if (root.mode === "success" && namedItem(refreshedContent, "refresh-status").visible)
                     throw new Error("Healthy footer retained redundant status")
-                console.log("NATIVE_SMOKE_PASS " + root.mode)
-                Qt.quit()
+                root.showLargestStatsFixture()
+                first.periodIndex = 0
+                root.stage = 9
                 return
             }
             if (root.stage < 2) {
@@ -214,6 +262,7 @@ ShellRoot {
             }
             if (root.stage === 3) {
                 var scrollContent = popup.contentItem[0]
+                root.assertStatsFit(popup)
                 if (root.capture(barContent, "bar") || root.capture(scrollContent, "week")) return
                 root.regularWidth = popup.contentWidth
                 root.regularHeight = popup.contentHeight
@@ -230,7 +279,7 @@ ShellRoot {
                     || namedItem(scrollContent, "metric-Commits").Accessible.name.indexOf("Commit contributions") < 0
                     || namedItem(scrollContent, "calendar-info").Accessible.description.indexOf("UTC") < 0)
                     throw new Error("Compact accessible seven-day Stats missing")
-                if (!textItem(scrollContent, "  12 stars") || !textItem(scrollContent, "JavaScript: 60.0%")
+                if (namedItem(scrollContent, "repository-stars").Accessible.name !== "Stars: 12" || !textItem(scrollContent, "JavaScript: 60.0%")
                     || namedItem(scrollContent, "language-JavaScript").Accessible.description.indexOf("60 GitHub-reported language bytes") < 0
                     || service.repositories.data.repositoryCount !== 2)
                     throw new Error("Complete repository snapshots missing")
@@ -264,16 +313,19 @@ ShellRoot {
                 preview.stale = true
                 preview.errorKind = "network"
                 linkProbe.section = preview
+                root.showLargestStatsFixture()
                 monthControl.clicked()
                 root.stage = 4
                 return
             }
             if (root.stage === 4) {
                 root.assertStablePopupSize(popup)
+                root.assertStatsFit(popup)
                 if (!textItem(linkProbe, "Authored · 2 of 42 shown") || !namedItem(linkProbe, "work-stale").visible
                     || !namedItem(linkProbe, "work-row-separator").visible)
                     throw new Error("Truncated preview total or independent work stale state missing")
                 if (root.capture(popup.contentItem[0], "month")) return
+                if (root.capture(popup.contentItem[0].parent.parent, "month-card")) return
                 if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)
                     throw new Error("Thirty-day period selection failed")
                 var monthChart = namedItem(popup.contentItem[0], "contribution-chart")
@@ -318,6 +370,7 @@ ShellRoot {
             }
             if (root.stage === 5) {
                 root.assertStablePopupSize(popup)
+                root.assertStatsFit(popup)
                 var annualChart = namedItem(popup.contentItem[0], "contribution-chart")
                 if (first.periodIndex !== 2 || first.selectedStats.days.length < 365
                     || annualChart.layout.rows !== 7 || annualChart.layout.months.length < 12)

@@ -57,6 +57,20 @@ Item {
             }
         }
 
+        function test_six_row_month_keeps_dates_inside_compact_tiles() {
+            chart.width = 338
+            showPeriod("month", "2026-08-29", 30)
+            compare(chart.layout.rows, 6)
+            verify(chart.implicitHeight <= 160, "Six rows must leave room for the Stats summaries and footer")
+            var first = findChild(chart, "contribution-2026-08-29")
+            var label = findChild(first, "short-date-label")
+            verify(label.visible && label.y >= 0 && label.y + label.height <= first.height)
+            compare(label.text, "29")
+            first.forceActiveFocus()
+            tryCompare(findChild(first, "contribution-tooltip"), "visible", true)
+            compare(first.Accessible.name, "2026-08-29: 0 contributions")
+        }
+
         function test_annual_fit_overflow_refresh_and_period_entry() {
             showPeriod("year", "2025-10-26", 365)
             compare(chart.tileWidth, 10)

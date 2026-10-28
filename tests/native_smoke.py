@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix="github-stats-native-") as temporary:
         shutil.copyfile(ROOT / name, stage / name)
     for name in ("Ui", "Commons"):
         (stage / name).symlink_to(SHELL / name, target_is_directory=True)
-    harness = (ROOT / "tests/native/shell.qml").read_text().replace('"../.."', '"."')
+    harness = (ROOT / "tests/native/shell.qml").read_text().replace('"../.."', '"."').replace('"../../ServiceModel.js"', '"ServiceModel.js"')
     (stage / "shell.qml").write_text(harness)
     env = dict(os.environ, XDG_RUNTIME_DIR=str(runtime), QT_QPA_PLATFORM="wayland",
                QT_QPA_PLATFORMTHEME="basic", QT_QUICK_CONTROLS_STYLE="Basic",

@@ -95,7 +95,7 @@ BarWidget {
             Column {
                 id: content
                 width: parent.width
-                spacing: Style.space(12)
+                spacing: Style.space(6)
 
                 Text {
                     width: parent.width
@@ -133,7 +133,7 @@ BarWidget {
                 Column {
                     visible: root.tabIndex === 0
                     width: parent.width
-                    spacing: Style.space(8)
+                    spacing: Style.space(6)
 
                     Flow {
                         id: periodControls
@@ -149,6 +149,7 @@ BarWidget {
                                 text: modelData
                                 fontSize: Style.font.caption
                                 horizontalPadding: Style.space(4)
+                                verticalPadding: Style.space(2)
                                 selected: root.periodIndex === index
                                 focusable: true
                                 Accessible.role: Accessible.RadioButton
@@ -162,14 +163,26 @@ BarWidget {
                     }
 
                     Row {
+                        id: activityHeader
                         width: parent.width
+                        spacing: Style.space(4)
                         Text {
-                            width: parent.width - calendarInfo.width
-                            text: "Activity"
+                            width: parent.width - calendarInfo.width - parent.spacing
+                                - (activityStale.visible ? activityStale.width + parent.spacing : 0)
+                            text: "Activity" + (root.selectedStats ? " · " + root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) : " unavailable")
                             color: Commons.Color.foreground
                             font.family: Style.font.family
-                            font.pixelSize: Style.font.body
+                            font.pixelSize: Style.font.bodySmall
                             font.bold: true
+                            wrapMode: Text.Wrap
+                        }
+                        InfoText {
+                            id: activityStale
+                            objectName: "stats-stale"
+                            visible: root.service !== null && root.service.stale
+                            text: "stale"
+                            tooltipText: "Activity updated: " + (root.service ? root.sectionFreshness({ lastSuccess: root.service.lastSuccess, stale: root.service.stale }) : "not loaded")
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(activityStale)
                         }
                         InfoText {
                             id: calendarInfo
@@ -181,17 +194,6 @@ BarWidget {
                             Accessible.name: "About contribution dates"
                             onActiveFocusChanged: if (activeFocus) root.revealPopupItem(calendarInfo)
                         }
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: root.selectedStats
-                            ? root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10)
-                            : "Period activity is unavailable until a complete refresh succeeds."
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.bodySmall
                     }
 
                     Heatmap {
@@ -207,7 +209,7 @@ BarWidget {
                         width: parent.width
                         columns: 2
                         columnSpacing: Style.space(12)
-                        rowSpacing: Style.space(8)
+                        rowSpacing: Style.space(4)
                         Repeater {
                             model: root.selectedStats ? [
                                 { label: "Contributions", accessibleLabel: "Contributions", value: root.selectedStats.contributions, meaning: "Activities GitHub counts in the selected period’s contribution calendar, including more than commits." },
@@ -228,16 +230,7 @@ BarWidget {
                             }
                         }
                     }
-                    Text {
-                        objectName: "stats-stale"
-                        visible: root.service !== null && root.service.stale
-                        width: parent.width
-                        text: root.service ? "Activity stale · updated " + new Date(root.service.lastSuccess).toLocaleString() : ""
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.caption
-                    }
+
                 }
 
                 WorkList {
@@ -267,37 +260,55 @@ BarWidget {
                 Column {
                     visible: root.tabIndex === 0
                     width: parent.width
-                    spacing: Style.space(8)
-                    InfoText {
-                        id: repositoryInfo
+                    spacing: Style.space(4)
+                    Row {
+                        id: repositoryHeader
                         width: parent.width
-                        text: "Repositories · current"
-                        font.pixelSize: Style.font.body
-                        font.bold: true
-                        tooltipText: root.repositoryExplanation
-                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(repositoryInfo)
-                    }
-                    InfoText {
-                        id: stars
-                        objectName: "repository-stars"
-                        width: parent.width
-                        text: "  " + (root.repositorySnapshot ? root.repositorySnapshot.stars : "—") + " stars"
-                        font.pixelSize: Style.font.body
-                        tooltipText: "Current stars received across the repository scope; not stars gained during the selected period. " + root.repositoryExplanation
-                        Accessible.name: root.repositorySnapshot ? "Stars: " + root.repositorySnapshot.stars : "Stars unavailable"
-                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(stars)
-                    }
-                    Repeater {
-                        model: root.repositorySnapshot ? root.repositorySnapshot.languages : []
+                        spacing: Style.space(6)
                         InfoText {
-                            id: language
-                            required property var modelData
-                            objectName: "language-" + modelData.name
-                            width: parent.width
-                            text: modelData.name + ": " + modelData.percentage.toFixed(1) + "%"
-                            tooltipText: modelData.bytes + " GitHub-reported language bytes across the repository scope. Shares describe repository contents, not coding time or period activity."
-                            Accessible.name: text + " repository language share"
-                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(language)
+                            id: repositoryInfo
+                            width: parent.width - stars.width - parent.spacing
+                                - (repositoryStale.visible ? repositoryStale.width + parent.spacing : 0)
+                            text: "Repositories · current"
+                            font.bold: true
+                            tooltipText: root.repositoryExplanation
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(repositoryInfo)
+                        }
+                        InfoText {
+                            id: repositoryStale
+                            objectName: "repositories-stale"
+                            visible: root.repositoryState !== null && root.repositoryState.stale
+                            text: "stale"
+                            tooltipText: "Repositories updated: " + root.sectionFreshness(root.repositoryState)
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(repositoryStale)
+                        }
+                        InfoText {
+                            id: stars
+                            objectName: "repository-stars"
+                            text: " " + (root.repositorySnapshot ? root.repositorySnapshot.stars : "—") + " stars"
+                            tooltipText: "Current stars received across the repository scope; not stars gained during the selected period. " + root.repositoryExplanation
+                            Accessible.name: root.repositorySnapshot ? "Stars: " + root.repositorySnapshot.stars : "Stars unavailable"
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(stars)
+                        }
+                    }
+                    Grid {
+                        id: languageGrid
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: Style.space(12)
+                        rowSpacing: Style.space(4)
+                        Repeater {
+                            model: root.repositorySnapshot ? root.repositorySnapshot.languages : []
+                            InfoText {
+                                id: language
+                                required property var modelData
+                                objectName: "language-" + modelData.name
+                                width: (languageGrid.width - languageGrid.columnSpacing) / 2
+                                text: modelData.name + ": " + modelData.percentage.toFixed(1) + "%"
+                                tooltipText: modelData.bytes + " GitHub-reported language bytes across the repository scope. Shares describe repository contents, not coding time or period activity."
+                                Accessible.name: text + " repository language share"
+                                onActiveFocusChanged: if (activeFocus) root.revealPopupItem(language)
+                            }
                         }
                     }
                     Text {
@@ -311,16 +322,7 @@ BarWidget {
                         font.family: Style.font.family
                         font.pixelSize: Style.font.bodySmall
                     }
-                    Text {
-                        objectName: "repositories-stale"
-                        visible: root.repositoryState !== null && root.repositoryState.stale
-                        width: parent.width
-                        text: root.repositoryState ? "Repositories stale · updated " + new Date(root.repositoryState.lastSuccess).toLocaleString() : ""
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.caption
-                    }
+
                 }
 
                 PanelSeparator {}
@@ -346,7 +348,7 @@ BarWidget {
                         width: parent.width - refreshButton.width - parent.spacing
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.service && root.service.lastSuccess > 0
-                            ? "Updated " + new Date(root.service.lastSuccess).toLocaleString() : "No successful update yet."
+                            ? "Updated " + new Date(root.service.lastSuccess).toLocaleString(Qt.locale(), Locale.ShortFormat) : "No successful update yet."
                         font.pixelSize: Style.font.caption
                         tooltipText: root.service ? [
                             "Activity: " + root.sectionFreshness({ lastSuccess: root.service.lastSuccess, stale: root.service.stale }),

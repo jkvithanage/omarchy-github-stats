@@ -15,7 +15,7 @@ Item {
     readonly property real gap: annual ? annualGap : Style.space(4)
     readonly property real labelWidth: annual ? Style.space(30) : 0
     readonly property real tileWidth: annual ? annualTileSize : Math.max(Style.space(32), (width - gap * 6) / 7)
-    readonly property real tileHeight: annual ? tileWidth : Style.space(period === "week" ? 64 : 48)
+    readonly property real tileHeight: annual ? tileWidth : Style.space(period === "week" ? 56 : 18)
     readonly property real headerHeight: Style.space(annual ? 34 : period === "month" ? 20 : 0)
     readonly property real contentWidth: viewport.contentWidth
     property bool browsed: false
@@ -24,7 +24,7 @@ Item {
     signal daySelected(string date)
     signal tileFocused(Item tile)
     objectName: "contribution-chart"
-    implicitHeight: layout ? headerHeight + layout.rows * (tileHeight + gap) + Style.space(16) : 0
+    implicitHeight: layout ? headerHeight + layout.rows * tileHeight + (layout.rows - 1) * gap + Style.space(annual ? 14 : 4) : 0
     visible: layout !== null
 
     function focusDate(index, step) {
@@ -168,7 +168,7 @@ Item {
                     Rectangle {
                         visible: tile.modelData !== null
                         width: parent.width
-                        height: root.annual ? parent.height : Style.space(28)
+                        height: root.period !== "week" ? parent.height : Style.space(28)
                         radius: Style.space(root.annual ? 2 : 3)
                         color: tile.level === 0 ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
                             : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + tile.level * 0.2)
@@ -178,7 +178,9 @@ Item {
                     Text {
                         objectName: "short-date-label"
                         visible: tile.modelData !== null && !root.annual
-                        y: Style.space(32)
+                        y: root.period === "month" ? 0 : Style.space(32)
+                        height: root.period === "month" ? parent.height : implicitHeight
+                        verticalAlignment: Text.AlignVCenter
                         width: parent.width
                         text: !tile.modelData ? "" : (root.period === "week"
                             ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(tile.modelData.date + "T00:00:00Z").getUTCDay()] + "\n" : "")

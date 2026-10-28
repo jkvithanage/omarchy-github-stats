@@ -32,7 +32,7 @@ Text {
         objectName: "info-tooltip"
         visible: root.tooltipText !== "" && (hover.hovered || root.activeFocus)
         text: root.tooltipText
-        width: Math.min(implicitWidth, root.width)
+        width: Math.min(implicitWidth, root.parent ? root.parent.width : root.width)
         contentItem: Text {
             text: tooltip.text
             textFormat: Text.PlainText
