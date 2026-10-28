@@ -1,6 +1,6 @@
 # Omarchy GitHub Stats — v1 specification
 
-Status: agreed design; v1 features are implemented. Installation guidance and native verification evidence are recorded in [the verification report](docs/verification.md), including explicit remaining physical-input and multi-monitor checks.
+Status: agreed design; v1 features and verification documentation are complete. Installation guidance, automated evidence, and maintainer-confirmed desktop checks are recorded in [the verification report](docs/verification.md), including remaining screen-reader, multi-monitor, and clean-install verification limits.
 
 ## Purpose and boundaries
 

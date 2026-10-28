@@ -1,6 +1,6 @@
 # V1 verification — 2026-10-26
 
-This record distinguishes automated native checks from physical-input checks. It does not claim the unverified items below passed.
+This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
 ## Target environment and installation
 
@@ -34,7 +34,7 @@ The exact generated PR GraphQL query was also accepted by GitHub without errors.
 
 All six native modes passed: `success`, `stale`, `auth`, `network`, `rate`, `hang`. The fixture process never contacts GitHub. Private production account data is not written by these tests.
 
-## Remaining manual evidence
+## Manual evidence and remaining limits
 
 ### Follow-up on 2026-10-27
 
@@ -42,13 +42,15 @@ An isolated popup using the unchanged production widget and fixture account data
 
 Injected keyboard and click events did not reliably activate the fixture controls. A temporary focus-capture experiment also failed to establish a valid grabbing popup, so it was discarded without changing production code. These probe results do not establish a widget defect or a passed keyboard/dismissal check. The available computer-use interface exposes browser tabs but no native desktop apps, so the remaining physical-input checks still require desktop observations. Temporary probes were stopped and desktop-region captures removed.
 
-The physical-check request is pending. Issue #7 remains open and `ready-for-human`; no pending acceptance item has been marked passed.
+### Maintainer confirmation on 2026-10-28
+
+In response to the requested installed-widget checks, the maintainer reported: “Seems all good to me”. This records maintainer confirmation of physical Tab/arrow navigation, visible focus, hover/focus date-and-count details, Escape and outside-click dismissal, and browser-link opening. These are reported desktop observations, not additional automated results. No defect was reported and no production code changed.
+
+The v1 implementation and verification documentation are complete with the limitations below recorded. The general confirmation does not establish screen-reader quality, a second physical monitor, or a clean interactive installation.
 
 The following are **not verified** by this run:
 
-- Physical Tab/arrow traversal and visible focus in the live installed bar, plus screen-reader announcement quality.
-- Physical hover/focus date/count inspection and pointer outside-click dismissal. Synthetic focus, tooltips, Escape, and callback tests cover their mechanics but do not replace physical input.
-- Actual external-browser launch by clicking an installed work link. Emitted URLs and filters are tested, and widget wiring uses `Qt.openUrlExternally`; no real work link was clicked during automation.
+- Screen-reader announcement quality. Accessible-label mechanics are tested, but no screen-reader session is recorded.
 - Two physical monitors. Two consumers share one service in the native harness, but only one display is attached.
 - A clean interactive `omarchy plugin add` trust/placement flow. Existing enablement, a clean clone, and validator/runtime checks are established; the already occupied installation was preserved.
 
