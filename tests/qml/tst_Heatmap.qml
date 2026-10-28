@@ -61,12 +61,12 @@ Item {
             showPeriod("year", "2025-10-26", 365)
             compare(chart.tileWidth, 10)
             compare(chart.gap, 3)
-            compare(chart.contentX, chart.preferredWidth - chart.width)
+            compare(chart.contentX, chart.contentWidth - chart.width)
             chart.contentX = 96
             // A refresh replaces delegates but keeps manual browsing at the same dates.
             showPeriod("year", "2025-10-26", 365)
             compare(chart.contentX, 96)
-            chart.width = chart.preferredWidth
+            chart.width = chart.contentWidth
             wait(0)
             compare(chart.contentX, 0)
             var labels = namedChildren(chart, "calendar-month-label").filter(function(label) { return label.visible })
@@ -77,7 +77,7 @@ Item {
             showPeriod("week", "2026-10-19", 7)
             compare(chart.contentX, 0)
             showPeriod("year", "2025-10-26", 365)
-            compare(chart.contentX, chart.preferredWidth - chart.width)
+            compare(chart.contentX, chart.contentWidth - chart.width)
         }
 
         function test_week_and_month_navigation() {

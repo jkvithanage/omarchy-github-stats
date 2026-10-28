@@ -75,10 +75,8 @@ BarWidget {
         bar: root.bar
         owner: root
         open: root.popupOpen
-        readonly property real horizontalContentInset: padding * 2 + Border.left(borderSpec) + Border.right(borderSpec)
-        contentWidth: fittedContentWidth(root.tabIndex === 0 && root.period === "year"
-            ? Math.max(Style.space(370), chart.preferredWidth + horizontalContentInset) : Style.space(370))
-        contentHeight: fittedContentHeight(content.implicitHeight)
+        contentWidth: fittedContentWidth(Style.space(370))
+        contentHeight: cappedContentHeight(Style.space(520))
         onOpenChanged: if (open) Qt.callLater(function() { tabs.itemAt(0).forceActiveFocus() })
 
         Controls.ScrollView {

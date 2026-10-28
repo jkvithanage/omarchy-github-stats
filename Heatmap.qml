@@ -17,7 +17,7 @@ Item {
     readonly property real tileWidth: annual ? annualTileSize : Math.max(Style.space(32), (width - gap * 6) / 7)
     readonly property real tileHeight: annual ? tileWidth : Style.space(period === "week" ? 64 : 48)
     readonly property real headerHeight: Style.space(annual ? 34 : period === "month" ? 20 : 0)
-    readonly property real preferredWidth: layout ? Style.space(30) + layout.columns * (annualTileSize + annualGap) - annualGap : 0
+    readonly property real contentWidth: viewport.contentWidth
     property bool browsed: false
     property bool initialPositionPending: true
     property alias contentX: viewport.contentX

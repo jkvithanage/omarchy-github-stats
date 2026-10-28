@@ -13,10 +13,29 @@ ShellRoot {
     property string openedUrl: ""
     property var beforeManualRefresh: null
     property real regularWidth: 0
+    property real regularHeight: 0
     property real annualBrowseX: 0
     property var captured: ({})
     property bool capturePending: false
+    property var constrainedPopup: null
+    property bool constrainPopup: false
     readonly property string mode: Quickshell.env("STATS_FIXTURE") || "success"
+
+    // Temporary bounds overrides restore the real production bindings after the narrow-screen probe.
+    Binding {
+        target: root.constrainedPopup
+        property: "contentWidth"
+        value: Math.min(root.regularWidth, 220)
+        when: root.constrainPopup
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: root.constrainedPopup
+        property: "contentHeight"
+        value: Math.min(root.regularHeight, 160)
+        when: root.constrainPopup
+        restoreMode: Binding.RestoreBindingOrValue
+    }
 
     Plugin.Service { id: service }
     Plugin.WorkList {
@@ -97,6 +116,12 @@ ShellRoot {
         return null
     }
 
+    function assertStablePopupSize(popup) {
+        if (popup.contentWidth !== root.regularWidth || popup.contentHeight !== root.regularHeight)
+            throw new Error("Switching tab or period resized the popup: " + popup.contentWidth + "×" + popup.contentHeight
+                + " instead of " + root.regularWidth + "×" + root.regularHeight)
+    }
+
     function capture(item, name) {
         var directory = Quickshell.env("STATS_CAPTURE_DIR")
         if (!directory || root.captured[name]) return false
@@ -155,6 +180,7 @@ ShellRoot {
                 } else if (service.lastSuccess <= root.beforeManualRefresh.stats || service.errorKind !== "") {
                     throw new Error("Manual Refresh did not publish fresh data")
                 }
+                root.assertStablePopupSize(popupFor(first))
                 var refreshedContent = popupFor(first).contentItem[0]
                 if (Math.abs(namedItem(refreshedContent, "contribution-chart").contentX - root.annualBrowseX) > 1)
                     throw new Error("Refresh reset annual browsing")
@@ -190,6 +216,7 @@ ShellRoot {
                 var scrollContent = popup.contentItem[0]
                 if (root.capture(barContent, "bar") || root.capture(scrollContent, "week")) return
                 root.regularWidth = popup.contentWidth
+                root.regularHeight = popup.contentHeight
                 var trigger = namedItem(first, "github-trigger")
                 if (!trigger || trigger.implicitHeight !== bar.barSize || trigger.tooltipText !== ""
                     || !trigger.activeFocusOnTab || trigger.Accessible.name.indexOf("8 contributions") < 0)
@@ -242,6 +269,7 @@ ShellRoot {
                 return
             }
             if (root.stage === 4) {
+                root.assertStablePopupSize(popup)
                 if (!textItem(linkProbe, "Authored · 2 of 42 shown") || !namedItem(linkProbe, "work-stale").visible
                     || !namedItem(linkProbe, "work-row-separator").visible)
                     throw new Error("Truncated preview total or independent work stale state missing")
@@ -252,6 +280,7 @@ ShellRoot {
                 if (!monthChart || monthChart.layout.columns !== 7 || monthChart.layout.rows < 5)
                     throw new Error("Thirty-day calendar layout missing")
                 first.tabIndex = 1
+                root.assertStablePopupSize(popup)
                 var prList = namedItem(popup.contentItem[0], "pr-work-list")
                 if (!prList || !prList.visible || !textItem(prList, "Fixture PR 1")
                     || !textItem(prList, "Authored · 1")
@@ -270,6 +299,7 @@ ShellRoot {
                 if (decodeURIComponent(root.openedUrl).indexOf("is:open author:fixture") < 0)
                     throw new Error("View all browser filters mismatch")
                 first.tabIndex = 2
+                root.assertStablePopupSize(popup)
                 var issueList = namedItem(popup.contentItem[0], "issue-work-list")
                 if (!issueList || !issueList.visible || !textItem(issueList, "Fixture Issue 1")
                     || !textItem(issueList, "Assigned · 1"))
@@ -287,6 +317,7 @@ ShellRoot {
                 return
             }
             if (root.stage === 5) {
+                root.assertStablePopupSize(popup)
                 var annualChart = namedItem(popup.contentItem[0], "contribution-chart")
                 if (first.periodIndex !== 2 || first.selectedStats.days.length < 365
                     || annualChart.layout.rows !== 7 || annualChart.layout.months.length < 12)
@@ -301,23 +332,27 @@ ShellRoot {
                     throw new Error("Independently stale repository state was hidden or staled Activity")
                 service.model.repositories = savedRepositoryState
                 service.modelChanged()
-                if (annualChart.preferredWidth > annualChart.width + 1 || popup.contentWidth <= root.regularWidth)
-                    throw new Error("Annual popup did not fit all actual calendar columns and insets")
+                if (annualChart.contentWidth <= annualChart.width
+                    || Math.abs(annualChart.contentX - (annualChart.contentWidth - annualChart.width)) > 1)
+                    throw new Error("Annual calendar did not initially show newest dates in the fixed popup")
+                annualChart.contentX = 96
                 first.tabIndex = 1
-                if (popup.contentWidth !== root.regularWidth) throw new Error("Annual width leaked into work tabs")
+                root.assertStablePopupSize(popup)
                 first.tabIndex = 0
+                root.assertStablePopupSize(popup)
+                if (Math.abs(annualChart.contentX - 96) > 1) throw new Error("Tab switching reset annual browsing")
                 var lastDate = first.selectedStats.days[first.selectedStats.days.length - 1].date
                 var lastTile = namedItem(annualChart, "contribution-" + lastDate)
                 lastTile.forceActiveFocus()
-                if (annualChart.contentX > 1) throw new Error("Fitted annual calendar unexpectedly overflowed")
+                if (annualChart.contentX <= 0) throw new Error("Annual focus did not reveal the newest date")
                 if (root.capture(annualChart, "focused-annual")) return
                 var previousWeek = first.selectedStats.days[first.selectedStats.days.length - 8].date
                 namedItem(annualChart, "contribution-" + previousWeek).forceActiveFocus()
                 // Re-enter annual after constraining the card, so newest-first initialization runs.
                 first.periodIndex = 0
-                popup.contentWidth = popup.fittedContentWidth(370, 220)
+                root.constrainedPopup = popup
+                root.constrainPopup = true
                 first.periodIndex = 2
-                popup.contentHeight = popup.fittedContentHeight(400, 160)
                 Commons.Color.foreground = "#ffddaa"
                 root.stage = 6
                 return
@@ -332,8 +367,8 @@ ShellRoot {
                 if (!root.captured["narrow"]) {
                     if (root.capture(narrowChart, "narrow")) return
                 }
-                if (Math.abs(narrowChart.contentX - (narrowChart.preferredWidth - narrowChart.width)) > 1)
-                    throw new Error("Narrow annual view did not start at newest dates: " + narrowChart.contentX + " / " + narrowChart.preferredWidth + " / " + narrowChart.width + " / " + narrowChart.browsed)
+                if (Math.abs(narrowChart.contentX - (narrowChart.contentWidth - narrowChart.width)) > 1)
+                    throw new Error("Narrow annual view did not start at newest dates: " + narrowChart.contentX + " / " + narrowChart.contentWidth + " / " + narrowChart.width + " / " + narrowChart.browsed)
                 var upperTile = namedItem(scroll, "contribution-" + first.selectedStats.days[0].date)
                 upperTile.forceActiveFocus()
                 var tooltip = null
@@ -355,7 +390,9 @@ ShellRoot {
                 return
             }
             if (first.popupOpen) throw new Error("Escape dismissal failed")
+            root.constrainPopup = false
             first.toggle()
+            root.assertStablePopupSize(popup)
             if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
             // Native owner callback is also used by outside-click dismissal.
             popup.close()
@@ -372,6 +409,7 @@ ShellRoot {
                 browsing.contentX = 96
                 root.annualBrowseX = browsing.contentX
                 namedItem(popup.contentItem[0], "refresh-button").clicked()
+                root.assertStablePopupSize(popup)
                 if (!service.refreshing) throw new Error("Manual Refresh did not start")
             })
         } catch (error) {
