@@ -337,6 +337,20 @@ ShellRoot {
                 if (!monthChart || monthChart.layout.columns !== 7 || monthChart.layout.rows < 5)
                     throw new Error("Thirty-day calendar layout missing")
                 first.tabIndex = 1
+                var prsBeforeFreshness = service.model.prs
+                var olderPrs = JSON.parse(JSON.stringify(prsBeforeFreshness))
+                olderPrs.lastSuccess = service.lastSuccess - 120000
+                service.model.prs = olderPrs
+                service.modelChanged()
+                var tabFreshness = namedItem(popup.contentItem[0], "refresh-freshness")
+                if (tabFreshness.timestamp !== olderPrs.lastSuccess || tabFreshness.text.indexOf("PRs") < 0)
+                    throw new Error("PR footer incorrectly uses Activity freshness")
+                first.tabIndex = 2
+                if (tabFreshness.timestamp !== service.issues.lastSuccess || tabFreshness.text.indexOf("Issues") < 0)
+                    throw new Error("Issue footer incorrectly uses Activity freshness")
+                service.model.prs = prsBeforeFreshness
+                service.modelChanged()
+                first.tabIndex = 1
                 var prList = namedItem(popup.contentItem[0], "pr-work-list")
                 if (!prList || !prList.visible || !namedItem(prList, "work-link-1")
                     || !textItem(prList, "Authored · 1")

@@ -13,12 +13,18 @@ Column {
     signal linkFocused(Item link)
     spacing: Style.space(10)
 
-    Text {
+    InfoText {
+        id: workStatus
+        objectName: "work-stale"
         width: root.width
         visible: !root.section || !root.section.data || root.section.stale || root.refreshing
-        text: !root.section ? "Waiting for " + root.sectionName + "."
-            : root.section.errorKind ? root.sectionName + " refresh failed." + (root.section.data ? " Showing stale data." : " See refresh status below.")
-            : root.refreshing ? "Refreshing " + root.sectionName + "…" : root.sectionName + " have not loaded yet."
+        text: root.refreshing ? (root.section && root.section.data ? "Refreshing " + root.sectionName + " · showing saved data…" : "Loading " + root.sectionName + "…")
+            : root.section && root.section.data && root.section.stale ? "Showing saved " + root.sectionName + " · refresh failed."
+            : root.section && root.section.errorKind ? root.sectionName + " unavailable. See refresh status below."
+            : "Waiting for " + root.sectionName + "."
+        tooltipText: root.section && root.section.lastSuccess > 0
+            ? root.sectionName + " last updated: " + new Date(root.section.lastSuccess).toLocaleString() : "No successful update yet."
+        onActiveFocusChanged: if (activeFocus) root.linkFocused(workStatus)
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
         color: Commons.Color.foreground
@@ -144,15 +150,4 @@ Column {
         }
     }
 
-    Text {
-        width: root.width
-        objectName: "work-stale"
-        visible: root.section !== null && root.section.stale
-        text: root.section ? root.sectionName + " updated: " + new Date(root.section.lastSuccess).toLocaleString()
-            + (root.section.stale ? " · stale" : "") : ""
-        wrapMode: Text.Wrap
-        color: Commons.Color.foreground
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-    }
 }
