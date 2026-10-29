@@ -236,7 +236,22 @@ BarWidget {
                         width: parent.width
                         periodStats: root.selectedStats
                         period: root.period
+                        today: new Date(root.service ? root.service.now : Date.now()).toISOString().slice(0, 10)
                         onTileFocused: function(tile) { root.revealPopupItem(tile) }
+                    }
+
+                    Button {
+                        id: latestButton
+                        objectName: "calendar-latest"
+                        visible: root.period === "year"
+                        text: "Latest"
+                        tooltipText: "Show the newest contribution dates"
+                        focusable: true
+                        Accessible.name: tooltipText
+                        Accessible.role: Accessible.Button
+                        Accessible.onPressAction: chart.showLatest()
+                        onClicked: chart.showLatest()
+                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(latestButton)
                     }
 
                     Grid {

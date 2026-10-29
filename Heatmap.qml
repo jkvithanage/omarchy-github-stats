@@ -8,6 +8,7 @@ FocusScope {
     id: root
     required property var periodStats
     required property string period
+    property string today: new Date().toISOString().slice(0, 10)
     readonly property var layout: periodStats ? periodStats.layout : null
     readonly property bool annual: period === "year"
     readonly property real gap: Style.space(4)
@@ -15,7 +16,7 @@ FocusScope {
     readonly property real tileWidth: annual ? Style.space(22) : Math.max(Style.space(32), (width - gap * 6) / 7)
     readonly property real tileHeight: annual ? tileWidth : Style.space(period === "week" ? 82 : 58)
     readonly property real headerHeight: Style.space(annual ? 34 : period === "month" ? 20 : 0)
-    readonly property real contentWidth: viewport.contentWidth
+    readonly property real contentWidth: viewport.contentWidth + labelWidth
     property bool browsed: false
     property bool initialPositionPending: true
     property string entryDate: ""
@@ -24,8 +25,51 @@ FocusScope {
     signal daySelected(string date)
     signal tileFocused(Item tile)
     objectName: "contribution-chart"
-    implicitHeight: layout ? headerHeight + layout.rows * (tileHeight + gap) + Style.space(16) : 0
+    implicitHeight: layout ? headerHeight + layout.rows * (tileHeight + gap) + Style.space(24) + intensityLegend.implicitHeight : 0
     visible: layout !== null
+
+    function levelColor(level) {
+        return level === 0 ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
+            : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + level * 0.2)
+    }
+
+    function showLatest() {
+        browsed = true
+        viewport.contentX = Math.max(0, viewport.contentWidth - viewport.width)
+    }
+
+    Row {
+        id: intensityLegend
+        anchors.bottom: parent.bottom
+        spacing: Style.space(4)
+        Accessible.role: Accessible.StaticText
+        Accessible.name: "Contribution intensity: Less to More. GitHub's relative contribution levels, not fixed contribution-count thresholds."
+        Text {
+            text: "Less"
+            color: Commons.Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+        }
+        Repeater {
+            model: 5
+            Rectangle {
+                required property int index
+                objectName: "legend-level-" + index
+                width: Style.space(10)
+                height: Style.space(10)
+                anchors.verticalCenter: parent.verticalCenter
+                radius: Style.space(2)
+                color: root.levelColor(index)
+                Accessible.ignored: true
+            }
+        }
+        Text {
+            text: "More"
+            color: Commons.Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+        }
+    }
 
     function focusDate(index, step) {
         for (var next = index + step; next >= 0 && next < tiles.count; next += step) {
@@ -97,11 +141,30 @@ FocusScope {
         Qt.callLater(settleInitialPosition)
     }
 
+    Repeater {
+        model: root.annual && root.layout ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : []
+        Text {
+            required property string modelData
+            required property int index
+            objectName: "calendar-weekday-" + modelData
+            x: 0
+            y: root.headerHeight + index * (root.tileHeight + root.gap)
+            width: root.labelWidth
+            text: modelData
+            horizontalAlignment: Text.AlignHCenter
+            color: Commons.Color.foreground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+        }
+    }
+
     Flickable {
         id: viewport
         anchors.fill: parent
+        anchors.leftMargin: root.labelWidth
+        anchors.bottomMargin: intensityLegend.implicitHeight + Style.space(8)
         clip: true
-        contentWidth: root.labelWidth + (root.layout ? root.layout.columns * (root.tileWidth + root.gap) - root.gap : 0)
+        contentWidth: root.layout ? root.layout.columns * (root.tileWidth + root.gap) - root.gap : 0
         contentHeight: height
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
@@ -120,7 +183,7 @@ FocusScope {
                 readonly property real nextColumn: index + 1 < root.layout.months.length ? root.layout.months[index + 1].column : root.layout.columns
                 readonly property real slotWidth: (nextColumn - modelData.column) * (root.tileWidth + root.gap) - root.gap
                 visible: implicitWidth <= slotWidth
-                x: root.labelWidth + modelData.column * (root.tileWidth + root.gap)
+                x: modelData.column * (root.tileWidth + root.gap)
                 text: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(modelData.date.slice(5)) - 1]
                     + "\n" + modelData.date.slice(0, 4)
                 color: Commons.Color.foreground
@@ -130,13 +193,13 @@ FocusScope {
         }
 
         Repeater {
-            model: root.period === "week" ? [] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            model: root.period === "month" ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : []
             Text {
                 required property string modelData
                 required property int index
-                x: root.annual ? 0 : index * (root.tileWidth + root.gap)
-                y: root.annual ? root.headerHeight + index * (root.tileHeight + root.gap) : 0
-                width: root.annual ? root.labelWidth : root.tileWidth
+                x: index * (root.tileWidth + root.gap)
+                y: 0
+                width: root.tileWidth
                 text: modelData
                 horizontalAlignment: Text.AlignHCenter
                 color: Commons.Color.foreground
@@ -147,7 +210,7 @@ FocusScope {
 
         Item {
             id: grid
-            x: root.labelWidth
+            x: 0
             y: root.headerHeight
 
             Repeater {
@@ -163,10 +226,11 @@ FocusScope {
                     y: (root.annual ? index % 7 : Math.floor(index / 7)) * (root.tileHeight + root.gap)
                     width: root.tileWidth
                     height: root.tileHeight
-                    activeFocusOnTab: modelData !== null && modelData.date === root.entryDate
+                    activeFocusOnTab: modelData !== null && (activeFocus || modelData.date === root.entryDate)
                     Accessible.ignored: modelData === null
                     Accessible.role: Accessible.StaticText
-                    Accessible.name: modelData ? modelData.date + ": " + modelData.contributionCount + " contributions" : ""
+                    Accessible.name: modelData ? modelData.date + ": " + modelData.contributionCount + " contributions"
+                        + (modelData.date === root.today ? " · Today (UTC; incomplete)" : "") : ""
                     onActiveFocusChanged: if (activeFocus && modelData) {
                         root.entryDate = modelData.date
                         root.daySelected(modelData.date)
@@ -201,14 +265,25 @@ FocusScope {
                         }
                     }
                     Rectangle {
+                        objectName: "contribution-fill"
                         visible: tile.modelData !== null
                         width: parent.width
                         height: root.annual ? parent.height : Style.space(28)
                         radius: Style.space(root.annual ? 2 : 3)
-                        color: tile.level === 0 ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
-                            : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + tile.level * 0.2)
+                        color: root.levelColor(tile.level)
                         border.width: tile.activeFocus ? 2 : 0
                         border.color: Commons.Color.foreground
+                        Rectangle {
+                            objectName: "today-marker"
+                            visible: tile.modelData !== null && tile.modelData.date === root.today
+                            anchors.top: parent.bottom
+                            anchors.topMargin: Style.space(1)
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Style.space(10)
+                            height: Style.space(2)
+                            color: Commons.Color.foreground
+                            Accessible.ignored: true
+                        }
                     }
                     Text {
                         objectName: "short-date-label"

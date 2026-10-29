@@ -345,7 +345,7 @@ ShellRoot {
                 if (!tile || tile.Accessible.name.indexOf(date) < 0)
                     throw new Error("Accessible contribution tile missing")
                 tile.forceActiveFocus()
-                if (!tile.activeFocus) throw new Error("Tile did not receive native focus")
+                if (!tile.activeFocus) throw new Error("Tile did not receive native focus: popup=" + first.popupOpen + "/visible=" + tile.visible)
                 var nextTile = namedItem(scrollContent, "contribution-" + service.stats.periods.week.days[1].date)
                 nextTile.forceActiveFocus()
                 var details = null
@@ -483,6 +483,17 @@ ShellRoot {
                     || Math.abs(annualChart.contentX - (annualChart.contentWidth - annualChart.width)) > 1)
                     throw new Error("Annual calendar did not initially show newest dates in the fixed popup")
                 annualChart.contentX = 96
+                var fixedSunday = namedItem(annualChart, "calendar-weekday-Sun")
+                if (!fixedSunday || fixedSunday.mapToItem(annualChart, 0, 0).x !== 0)
+                    throw new Error("Annual weekday gutter scrolls with contribution dates")
+                var serialBeforeLatest = service.model.serial
+                var latest = namedItem(popup.contentItem[0], "calendar-latest")
+                latest.forceActiveFocus()
+                latest.clicked()
+                if (!latest.activeFocus || Math.abs(annualChart.contentX - (annualChart.contentWidth - annualChart.width)) > 1
+                    || service.model.serial !== serialBeforeLatest)
+                    throw new Error("Latest action changed focus, fetched data or failed to reveal newest dates")
+                annualChart.contentX = 96
                 first.tabIndex = 1
                 first.tabIndex = 0
                 if (Math.abs(annualChart.contentX - 96) > 1) throw new Error("Tab switching reset annual browsing")
@@ -537,6 +548,7 @@ ShellRoot {
             }
             if (root.stage === 7) {
                 if (first.popupOpen) throw new Error("Escape dismissal failed")
+                if (popup.visible) return
                 root.constrainPopup = false
                 first.toggle()
                 if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
@@ -551,6 +563,7 @@ ShellRoot {
                 return
             }
             if (root.stage === 71) {
+                if (popup.visible) return
                 first.toggle()
                 root.stage = 72
                 return
@@ -564,6 +577,7 @@ ShellRoot {
                 return
             }
             if (root.stage === 73) {
+                if (popup.visible) return
                 first.toggle()
                 root.stage = 74
                 return

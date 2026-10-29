@@ -172,6 +172,38 @@ Item {
             tryCompare(findChild(chart, "contribution-2026-10-25"), "activeFocus", true)
         }
 
+        function test_today_marker_and_legend() {
+            chart.today = "2026-10-25"
+            showPeriod("week", "2026-10-19", 7)
+            var todayTile = findChild(chart, "contribution-2026-10-25")
+            verify(findChild(todayTile, "today-marker").visible)
+            verify(todayTile.Accessible.name.indexOf("Today") >= 0 && todayTile.Accessible.name.indexOf("incomplete") >= 0)
+            todayTile.forceActiveFocus()
+            verify(findChild(todayTile, "today-marker").visible)
+            verify(findChild(todayTile, "contribution-fill").border.width > 0)
+            compare(findChild(chart, "legend-level-0").color, findChild(findChild(chart, "contribution-2026-10-19"), "contribution-fill").color)
+            compare(findChild(chart, "legend-level-2").color, findChild(todayTile, "contribution-fill").color)
+            chart.today = "2026-10-26"
+            verify(!findChild(todayTile, "today-marker").visible)
+        }
+
+        function test_annual_weekdays_stay_fixed_and_latest_preserves_focus() {
+            showPeriod("year", "2025-10-26", 365)
+            var sunday = findChild(chart, "calendar-weekday-Sun")
+            verify(sunday !== null)
+            var fixedX = sunday.mapToItem(chart, 0, 0).x
+            chart.contentX = 96
+            wait(0)
+            compare(sunday.mapToItem(chart, 0, 0).x, fixedX)
+            beforeChart.forceActiveFocus()
+            chart.showLatest()
+            compare(chart.contentX, chart.contentWidth - chart.width)
+            verify(beforeChart.activeFocus)
+            var first = findChild(chart, "contribution-2025-10-26")
+            first.forceActiveFocus()
+            verify(first.mapToItem(chart, 0, 0).x >= chart.labelWidth)
+        }
+
         function test_annual_navigation_and_scrolling() {
             showPeriod("year", "2025-10-26", 365)
             var last = findChild(chart, "contribution-2026-10-25")
