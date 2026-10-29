@@ -81,7 +81,7 @@ Include open issues authored by or assigned to the account. Exclude PRs from iss
 - Show the ten most recently updated matches in each disjoint category, ordered by update time descending.
 - Display each item's title, repository, number, role, and update time. Mark private repositories and draft PRs where relevant.
 - Show full category totals separately from the number of preview rows. Use API totals, not preview lengths.
-- Open individual items in the browser. Provide a **View all** link for each category, preserving its open-state, account-role, and overlap-exclusion filters.
+- Open individual items through keyboard-operable linked titles with visible hover/focus affordances. Keep repository/number and role/private/draft details; omit a redundant separate Open button. Update times use relative labels for recent work and concise local dates for older work, with exact local timestamps available on hover/focus and through accessible descriptions. Labels update while visible without fetching data. Provide a **View all** link for each category, preserving its open-state, account-role, and overlap-exclusion filters.
 - Provide explicit empty, loading, and failed states. Do not show a completed empty list while its request is still loading.
 
 Work lists are independent of the selected Stats period. Selecting 7 days does not hide an older open issue or PR.

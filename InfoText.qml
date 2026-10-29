@@ -8,15 +8,29 @@ import qs.Commons as Commons
 Text {
     id: root
     property string tooltipText: ""
+    property bool link: false
+    signal activated()
     textFormat: Text.PlainText
     wrapMode: Text.Wrap
     color: Commons.Color.foreground
     font.family: Style.font.family
     font.pixelSize: Style.font.bodySmall
-    activeFocusOnTab: tooltipText !== ""
-    Accessible.role: Accessible.StaticText
+    activeFocusOnTab: link || tooltipText !== ""
+    font.underline: link && (hover.hovered || activeFocus)
+    Accessible.role: link ? Accessible.Link : Accessible.StaticText
     Accessible.name: text
     Accessible.description: tooltipText
+    Accessible.onPressAction: if (link) activated()
+    Keys.onReturnPressed: function(event) { event.accepted = link; if (link) activated() }
+    Keys.onEnterPressed: function(event) { event.accepted = link; if (link) activated() }
+    Keys.onSpacePressed: function(event) { event.accepted = link; if (link) activated() }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.link
+        cursorShape: Qt.PointingHandCursor
+        onClicked: { root.forceActiveFocus(); root.activated() }
+    }
 
     Rectangle {
         anchors.fill: parent

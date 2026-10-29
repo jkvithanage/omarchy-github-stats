@@ -2,6 +2,12 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Linked work titles — 2026-10-29 (#19)
+
+PR and issue titles are now the primary browser links, replacing separate Open buttons. Relative update labels refresh while visible and retain exact local timestamps on hover/focus. Metadata, category totals, badges and View all URLs are preserved. The native title-link regression failed before implementation. `make check` passes (23 service fixtures, 16 Qt cases, lint and manifest validation; existing dynamic host/theme lint warnings remain). `make smoke` passes all six modes, including title URLs, truncated totals, badges and constrained focus reveal. QML tests exercise wrapped-title Return/Space, pointer and accessibility activation, and relative/exact timestamp presentation.
+
+Fixture renders in `/tmp/stats-19-captures` were inspected for compact work rows and preserved metadata. The fixture harness does not launch a real browser. Physical keyboard/browser activation and screen-reader announcement quality remain unverified; the earlier physical/screen-edge limits still apply.
+
 ## Target environment and installation
 
 - Omarchy `4.0.6-1`, native `omarchy.bar`, Quickshell `0.3.2` (Omarchy revision `2b4501a282689792b62e94f3fb30d8f512324fe6`), Qt `6.12.0`.

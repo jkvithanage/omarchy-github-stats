@@ -71,14 +71,22 @@ Column {
                     width: root.width
                     spacing: Style.space(4)
                     PanelSeparator { objectName: row.index > 0 ? "work-row-separator" : ""; visible: row.index > 0 }
-                    Text {
+                    InfoText {
+                        id: itemLink
+                        objectName: "work-link-" + row.modelData.number
                         width: root.width
-                        text: row.modelData.title
+                        text: row.modelData.title + " "
+                        tooltipText: "Open " + row.modelData.repository + " #" + row.modelData.number + " in browser"
                         textFormat: Text.PlainText
                         wrapMode: Text.Wrap
                         color: Commons.Color.foreground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
+                        link: true
+                        Accessible.name: "Open " + row.modelData.title + " · " + row.modelData.repository + " #" + row.modelData.number + " · " + row.modelData.role
+                            + (row.modelData.isDraft ? " · Draft" : "") + (row.modelData.isPrivate ? " · Private" : "")
+                        onActivated: root.openUrl(row.modelData.url)
+                        onActiveFocusChanged: if (activeFocus) root.linkFocused(itemLink)
                     }
                     Text {
                         width: root.width
@@ -112,25 +120,13 @@ Column {
                             }
                         }
                     }
-                    Text {
+                    RelativeTime {
+                        id: updatedTime
+                        objectName: "work-updated-" + row.modelData.number
                         width: root.width
-                        text: "Updated: " + new Date(row.modelData.updatedAt).toLocaleString()
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
+                        timestamp: Date.parse(row.modelData.updatedAt)
                         font.pixelSize: Style.font.bodySmall
-                    }
-                    Button {
-                        id: itemLink
-                        text: "Open #" + row.modelData.number
-                        iconText: ""
-                        tooltipText: "Open " + row.modelData.repository + " #" + row.modelData.number + " in browser"
-                        focusable: true
-                        Accessible.role: Accessible.Link
-                        Accessible.name: "Open " + row.modelData.title + " · " + row.modelData.repository + " #" + row.modelData.number + " · " + row.modelData.role
-                            + (row.modelData.isDraft ? " · Draft" : "") + (row.modelData.isPrivate ? " · Private" : "")
-                        onClicked: root.openUrl(row.modelData.url)
-                        onActiveFocusChanged: if (activeFocus) root.linkFocused(itemLink)
+                        onActiveFocusChanged: if (activeFocus) root.linkFocused(updatedTime)
                     }
                 }
             }
