@@ -8,6 +8,12 @@ Stats leads with a native display-size contribution total and explicit selected-
 
 `make check` and all six `make smoke` modes pass. The native fixture now lets focus-grab close/reopen events settle on separate ticks instead of toggling several times in one event. Fixture renders in `/tmp/stats-22-captures` were inspected, including the six-row month, all six language shares and stale guidance. Existing dynamic host/theme lint warnings remain.
 
+## Open-work totals — 2026-10-29 (#23)
+
+PRs and Issues tabs show complete disjoint totals, abbreviating large visible counts while preserving exact accessible totals. Unknown and stale counts remain distinct from successful zero; narrow tabs place counts on a second line. Each work tab summarizes its secondary category explicitly as work from other authors. The native regression first failed because tab totals were absent. Added native assertions cover totals exceeding preview lengths, large counts, saved/unknown/zero states and secondary-summary meanings. Existing overlap, account isolation, period independence, native caps and link checks remain in place. Physical screen-reader and screen-edge limits remain unchanged.
+
+Integrated with #21 and #22: `make check` passes (23 service fixtures, 19 Qt cases, lint/manifest; existing host/theme warnings remain), and all six native smoke modes pass. Fixture renders in `/tmp/stats-23-captures` were inspected for tab counts, summary wording and preserved work metadata.
+
 ## Calendar keyboard entry — 2026-10-29 (#21)
 
 Heatmaps expose one sequential Tab stop, enter at the latest available date for a new period, and retain the browsed date on re-entry and refresh. Arrow keys skip padding and reveal focused dates; removing the remembered date falls back to the latest covered date. An empty chart adds no stop. The initial regression failed when Tab entered the first date rather than the latest. Focused QML coverage exercises forward/backward entry and exit for all periods, refresh replacement, rollover and boundaries. Native tests retain original sizing, constrained scrolling, annual browsing, tooltips and Escape checks. Physical keyboard and screen-reader observation limits remain unchanged.

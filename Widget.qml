@@ -31,6 +31,10 @@ BarWidget {
         return section && section.lastSuccess > 0 ? new Date(section.lastSuccess).toLocaleString() + (section.stale ? " · stale" : "") : "not loaded"
     }
     function close() { popupOpen = false }
+    function compactCount(count) {
+        return count >= 1000000 ? Math.floor(count / 1000000) + "m"
+            : count >= 1000 ? Math.floor(count / 1000) + "k" : String(count)
+    }
     function revealPopupItem(item) {
         var viewport = popupScroll.contentItem
         var point = item.mapToItem(content, 0, 0)
@@ -118,13 +122,27 @@ BarWidget {
                         Button {
                             required property string modelData
                             required property int index
+                            objectName: "tab-" + modelData
+                            readonly property var workSection: !root.service || index === 0 ? null : index === 1 ? root.service.prs : root.service.issues
+                            readonly property double workTotal: workSection && workSection.data
+                                ? workSection.data.groups[0].total + workSection.data.groups[1].total : -1
+                            readonly property string countLabel: (workTotal < 0 ? "—" : root.compactCount(workTotal))
+                                + (workSection && workSection.stale ? "*" : "")
+                            readonly property bool narrow: width < Style.space(100)
+                            readonly property string workSummary: workTotal < 0 ? modelData + " totals unavailable"
+                                : workTotal + " open " + modelData + (workSection.stale ? " · saved data" : "")
                             width: parent.width / 3
-                            text: modelData
+                            text: modelData + (index === 0 ? (narrow ? "\n " : "") : (narrow ? "\n" : " ") + countLabel)
                             fontFamily: Style.font.family
+                            fontSize: Style.font.bodySmall
+                            horizontalPadding: Style.space(4)
+                            tooltipText: index === 0 ? "" : workSummary
+                                + (workSection && workSection.lastSuccess > 0 ? " · Updated " + new Date(workSection.lastSuccess).toLocaleString() : "")
                             selected: root.tabIndex === index
                             focusable: true
                             Accessible.role: Accessible.PageTab
-                            Accessible.name: modelData
+                            Accessible.name: index === 0 ? modelData : workSummary
+                            Accessible.description: tooltipText
                             Accessible.selected: selected
                             onClicked: root.tabIndex = index
                             Keys.onLeftPressed: tabs.itemAt((index + 2) % 3).forceActiveFocus()

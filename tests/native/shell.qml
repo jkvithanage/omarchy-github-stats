@@ -292,6 +292,32 @@ ShellRoot {
                 if (contributionTotal.text !== "Loading contributions…") throw new Error("Initial contributions are not labeled loading")
                 service.model.active = originalActive
                 service.model.stats = originalStats
+                var prTab = namedItem(scrollContent, "tab-PRs")
+                if (!prTab || prTab.Accessible.name.indexOf("2 open PRs") < 0)
+                    throw new Error("PR tab is missing complete open-work totals")
+                var originalPrTotals = service.model.prs
+                var largePrTotals = JSON.parse(JSON.stringify(originalPrTotals))
+                largePrTotals.data.groups[0].total = 12345
+                service.model.prs = largePrTotals
+                service.modelChanged()
+                if (prTab.Accessible.name.indexOf("12346 open PRs") < 0 || prTab.text.indexOf("12k") < 0)
+                    throw new Error("Tab total uses preview rows or fails to fit large counts")
+                largePrTotals.stale = true
+                service.model.prs = JSON.parse(JSON.stringify(largePrTotals))
+                service.modelChanged()
+                if (prTab.text.indexOf("*") < 0 || prTab.Accessible.name.indexOf("saved") < 0)
+                    throw new Error("Stale tab totals are presented as current")
+                service.model.prs = { data: null, lastSuccess: 0, stale: false, errorKind: "authentication" }
+                service.modelChanged()
+                if (prTab.text.indexOf("—") < 0 || prTab.Accessible.name.indexOf("unavailable") < 0)
+                    throw new Error("Unknown work totals are shown as zero")
+                largePrTotals.data.groups[0].total = 0
+                largePrTotals.data.groups[1].total = 0
+                largePrTotals.stale = false
+                service.model.prs = largePrTotals
+                service.modelChanged()
+                if (prTab.Accessible.name.indexOf("0 open PRs") < 0) throw new Error("Successful zero work is unavailable")
+                service.model.prs = originalPrTotals
                 service.modelChanged()
                 root.assertAdaptivePopup(popup)
                 if (root.capture(barContent, "bar") || root.capture(scrollContent, "week")) return
@@ -397,7 +423,10 @@ ShellRoot {
                 if (!prList || !prList.visible || !namedItem(prList, "work-link-1")
                     || !textItem(prList, "Authored · 1")
                     || !textItem(prList, "Review requests · 1"))
-                    throw new Error("PR work previews missing")
+                    throw new Error("PR work previews missing: popup=" + first.popupOpen + "/visible=" + (prList ? prList.visible : "missing")
+                        + "/authored=" + !!textItem(prList, "Authored · 1") + "/review=" + !!textItem(prList, "Review requests · 1"))
+                if (namedItem(prList, "work-attention-summary").text !== "Review requests from other authors: 1")
+                    throw new Error("Review attention summary loses its overlap exclusion")
                 if (root.capture(popup.contentItem[0], "prs")) return
                 var authoredLink = namedItem(prList, "work-link-1")
                 if (authoredLink.Accessible.name.indexOf("Draft") < 0 || authoredLink.Accessible.name.indexOf("Private") < 0
@@ -418,6 +447,8 @@ ShellRoot {
                 if (!issueList || !issueList.visible || !namedItem(issueList, "work-link-1")
                     || !textItem(issueList, "Assigned · 1"))
                     throw new Error("Issue work previews missing")
+                if (namedItem(issueList, "work-attention-summary").text !== "Assignments from other authors: 1")
+                    throw new Error("Assignment attention summary loses its overlap exclusion")
                 if (root.capture(popup.contentItem[0], "issues")) return
                 namedItem(issueLinkProbe, "work-link-1").Accessible.pressAction()
                 if (root.openedUrl !== "https://github.com/fixture/repo/issues/1") throw new Error("Issue URL mismatch")

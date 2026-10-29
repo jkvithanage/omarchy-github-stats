@@ -13,6 +13,21 @@ Column {
     signal linkFocused(Item link)
     spacing: Style.space(10)
 
+    Text {
+        objectName: "work-attention-summary"
+        width: root.width
+        visible: root.section !== null && root.section.data !== null
+        text: root.section && root.section.data
+            ? (root.sectionName === "PRs" ? "Review requests from other authors: " : "Assignments from other authors: ")
+                + root.section.data.groups[1].total + (root.section.stale ? " · saved" : "") : ""
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        color: Commons.Color.foreground
+        font.family: Style.font.family
+        font.pixelSize: Style.font.bodySmall
+        Accessible.name: text
+    }
+
     InfoText {
         id: workStatus
         objectName: "work-stale"

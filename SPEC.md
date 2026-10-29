@@ -89,6 +89,8 @@ Include open issues authored by or assigned to the account. Exclude PRs from iss
 
 Work lists are independent of the selected Stats period. Selecting 7 days does not hide an older open issue or PR.
 
+PRs and Issues tab counts sum their disjoint category API totals, not preview lengths. Abbreviate large counts only in visible labels and retain exact totals in accessible names and tooltips. Distinguish unknown totals from successful zero and mark retained stale totals. Counts may sit below tab labels under narrow screen caps. Each work tab summarizes its secondary category explicitly as review requests or assignments from other authors, preserving authored-first grouping and overlap badges without new API requests.
+
 ## Architecture and data ownership
 
 Use QML/JavaScript and Omarchy's existing popup and theme components. No web server, Electron runtime, database, or custom credential service is required.
