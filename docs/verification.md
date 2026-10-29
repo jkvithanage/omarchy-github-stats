@@ -6,7 +6,7 @@ This record distinguishes automated native checks, maintainer-reported physical 
 
 Heatmaps expose one sequential Tab stop, enter at the latest available date for a new period, and retain the browsed date on re-entry and refresh. Arrow keys skip padding and reveal focused dates; removing the remembered date falls back to the latest covered date. An empty chart adds no stop. The initial regression failed when Tab entered the first date rather than the latest. Focused QML coverage exercises forward/backward entry and exit for all periods, refresh replacement, rollover and boundaries. Native tests retain original sizing, constrained scrolling, annual browsing, tooltips and Escape checks. Physical keyboard and screen-reader observation limits remain unchanged.
 
-`make check` passes (23 service fixtures, 18 Qt cases, lint and manifest validation; existing host/theme lint warnings remain), and all six `make smoke` modes pass. The offscreen theme boundary now supplies the caption/body-small sizes used by the exercised labels.
+`make check` passes (23 service fixtures, 19 Qt cases, lint and manifest validation; existing host/theme lint warnings remain), and all six `make smoke` modes pass. Review caught entry-date memory surviving a new weekly popup session; opening now explicitly resets entry, with QML and native close/reopen regressions. The offscreen theme boundary supplies the caption/body-small sizes used by the exercised labels.
 
 ## Active-tab freshness — 2026-10-29 (#20)
 

@@ -56,6 +56,11 @@ FocusScope {
         }
     }
 
+    function resetKeyboardEntry() {
+        resetEntryPending = true
+        Qt.callLater(updateEntryDate)
+    }
+
     function reveal(tile) {
         browsed = true
         var left = grid.x + tile.x
@@ -74,10 +79,9 @@ FocusScope {
         initialPositionPending = false
     }
     onPeriodChanged: {
-        resetEntryPending = true
+        resetKeyboardEntry()
         browsed = false
         initialPositionPending = true
-        Qt.callLater(updateEntryDate)
         Qt.callLater(settleInitialPosition)
     }
     onLayoutChanged: {

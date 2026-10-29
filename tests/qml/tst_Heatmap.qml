@@ -162,6 +162,16 @@ Item {
             tryCompare(afterChart, "activeFocus", true)
         }
 
+        function test_new_popup_session_resets_week_entry() {
+            showPeriod("week", "2026-10-19", 7)
+            findChild(chart, "contribution-2026-10-20").forceActiveFocus()
+            beforeChart.forceActiveFocus()
+            chart.resetKeyboardEntry()
+            wait(0)
+            keyClick(Qt.Key_Tab)
+            tryCompare(findChild(chart, "contribution-2026-10-25"), "activeFocus", true)
+        }
+
         function test_annual_navigation_and_scrolling() {
             showPeriod("year", "2025-10-26", 365)
             var last = findChild(chart, "contribution-2026-10-25")
