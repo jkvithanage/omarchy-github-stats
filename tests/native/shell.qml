@@ -287,7 +287,7 @@ ShellRoot {
                     throw new Error("Complete repository snapshots missing")
                 var date = service.stats.periods.week.days[0].date
                 var tile = namedItem(scrollContent, "contribution-" + date)
-                if (!tile || !tile.activeFocusOnTab || tile.Accessible.name.indexOf(date) < 0)
+                if (!tile || tile.Accessible.name.indexOf(date) < 0)
                     throw new Error("Accessible contribution tile missing")
                 tile.forceActiveFocus()
                 if (!tile.activeFocus) throw new Error("Tile did not receive native focus")

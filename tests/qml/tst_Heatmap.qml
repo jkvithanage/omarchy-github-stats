@@ -6,19 +6,23 @@ import "../../ServiceModel.js" as Model
 Item {
     width: 360
     height: 600
+    Item { id: beforeChart; activeFocusOnTab: true }
     Plugin.Heatmap {
         id: chart
         width: 220
         period: "week"
         periodStats: null
     }
+    Item { id: afterChart; activeFocusOnTab: true }
     TestCase {
         name: "HeatmapKeyboard"
         when: windowShown
 
         function init() {
+            beforeChart.forceActiveFocus()
             chart.width = 220
             chart.periodStats = null
+            chart.entryDate = ""
             chart.initialPositionPending = true
         }
 
@@ -111,6 +115,51 @@ Item {
             tryCompare(findChild(chart, "contribution-2026-10-03"), "activeFocus", true)
             var padding = findChild(chart, "calendar-padding")
             verify(padding && !padding.activeFocusOnTab)
+        }
+
+        function test_single_tab_stop_and_reentry() {
+            var periods = ["week", "month", "year"]
+            var counts = [7, 30, 365]
+            var latest = ["2025-11-01", "2025-11-24", "2026-10-25"]
+            var previous = ["2025-10-31", "2025-11-23", "2026-10-18"]
+            for (var i = 0; i < periods.length; i++) {
+                showPeriod(periods[i], "2025-10-26", counts[i])
+                beforeChart.forceActiveFocus()
+                keyClick(Qt.Key_Tab)
+                tryCompare(findChild(chart, "contribution-" + latest[i]), "activeFocus", true)
+                keyClick(Qt.Key_Left)
+                var remembered = findChild(chart, "contribution-" + previous[i])
+                verify(remembered.activeFocus)
+                keyClick(Qt.Key_Tab)
+                tryCompare(afterChart, "activeFocus", true)
+                keyClick(Qt.Key_Backtab)
+                tryCompare(remembered, "activeFocus", true)
+                keyClick(Qt.Key_Backtab)
+                tryCompare(beforeChart, "activeFocus", true)
+            }
+            chart.periodStats = null
+            beforeChart.forceActiveFocus()
+            keyClick(Qt.Key_Tab)
+            tryCompare(afterChart, "activeFocus", true)
+        }
+
+        function test_refresh_and_rollover_keep_valid_focus() {
+            showPeriod("week", "2026-10-19", 7)
+            findChild(chart, "contribution-2026-10-22").forceActiveFocus()
+            showPeriod("week", "2026-10-19", 7)
+            tryCompare(findChild(chart, "contribution-2026-10-22"), "activeFocus", true)
+            showPeriod("week", "2026-10-23", 7)
+            tryCompare(findChild(chart, "contribution-2026-10-29"), "activeFocus", true)
+            var tabStops = 0
+            for (var i = 0; i < 7; i++) {
+                var day = "2026-10-" + (23 + i)
+                if (findChild(chart, "contribution-" + day).activeFocusOnTab) tabStops++
+            }
+            compare(tabStops, 1)
+            keyClick(Qt.Key_Right)
+            verify(findChild(chart, "contribution-2026-10-29").activeFocus)
+            keyClick(Qt.Key_Tab)
+            tryCompare(afterChart, "activeFocus", true)
         }
 
         function test_annual_navigation_and_scrolling() {

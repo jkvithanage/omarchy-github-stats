@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import qs.Commons
 import qs.Commons as Commons
 
-Item {
+FocusScope {
     id: root
     required property var periodStats
     required property string period
@@ -18,6 +18,8 @@ Item {
     readonly property real contentWidth: viewport.contentWidth
     property bool browsed: false
     property bool initialPositionPending: true
+    property string entryDate: ""
+    property bool resetEntryPending: true
     property alias contentX: viewport.contentX
     signal daySelected(string date)
     signal tileFocused(Item tile)
@@ -29,6 +31,28 @@ Item {
         for (var next = index + step; next >= 0 && next < tiles.count; next += step) {
             var tile = tiles.itemAt(next)
             if (tile.modelData) { tile.forceActiveFocus(); return }
+        }
+    }
+
+    function updateEntryDate() {
+        var latest = ""
+        var remembered = null
+        for (var i = 0; i < tiles.count; i++) {
+            var tile = tiles.itemAt(i)
+            if (!tile.modelData) continue
+            latest = tile.modelData.date
+            if (!resetEntryPending && latest === entryDate) remembered = tile
+        }
+        if (!remembered) entryDate = latest
+        resetEntryPending = false
+        if (activeFocus && entryDate) {
+            for (var j = 0; j < tiles.count; j++) {
+                var target = tiles.itemAt(j)
+                if (target.modelData && target.modelData.date === entryDate) {
+                    target.forceActiveFocus()
+                    break
+                }
+            }
         }
     }
 
@@ -50,16 +74,24 @@ Item {
         initialPositionPending = false
     }
     onPeriodChanged: {
+        resetEntryPending = true
         browsed = false
         initialPositionPending = true
+        Qt.callLater(updateEntryDate)
         Qt.callLater(settleInitialPosition)
     }
-    onLayoutChanged: Qt.callLater(settleInitialPosition)
+    onLayoutChanged: {
+        Qt.callLater(updateEntryDate)
+        Qt.callLater(settleInitialPosition)
+    }
     onWidthChanged: {
         if (!browsed) initialPositionPending = true
         Qt.callLater(settleInitialPosition)
     }
-    Component.onCompleted: Qt.callLater(settleInitialPosition)
+    Component.onCompleted: {
+        Qt.callLater(updateEntryDate)
+        Qt.callLater(settleInitialPosition)
+    }
 
     Flickable {
         id: viewport
@@ -127,11 +159,12 @@ Item {
                     y: (root.annual ? index % 7 : Math.floor(index / 7)) * (root.tileHeight + root.gap)
                     width: root.tileWidth
                     height: root.tileHeight
-                    activeFocusOnTab: modelData !== null
+                    activeFocusOnTab: modelData !== null && modelData.date === root.entryDate
                     Accessible.ignored: modelData === null
                     Accessible.role: Accessible.StaticText
                     Accessible.name: modelData ? modelData.date + ": " + modelData.contributionCount + " contributions" : ""
                     onActiveFocusChanged: if (activeFocus && modelData) {
+                        root.entryDate = modelData.date
                         root.daySelected(modelData.date)
                         root.reveal(tile)
                     }
