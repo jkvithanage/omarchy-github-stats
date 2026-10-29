@@ -2,8 +2,6 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    property color background: "#101315"
-    readonly property QtObject popups: QtObject { property color background: "#202020" }
     property color foreground: "#eeeeee"
     property color accent: "#6699cc"
     readonly property QtObject tooltip: QtObject {

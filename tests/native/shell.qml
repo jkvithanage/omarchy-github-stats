@@ -14,7 +14,8 @@ ShellRoot {
     property string openedUrl: ""
     property var beforeManualRefresh: null
     property real regularWidth: 0
-    property real regularHeight: 0
+    property real weekHeight: 0
+    property real monthHeight: 0
     property real annualBrowseX: 0
     property var captured: ({})
     property bool capturePending: false
@@ -33,7 +34,7 @@ ShellRoot {
     Binding {
         target: root.constrainedPopup
         property: "contentHeight"
-        value: Math.min(root.regularHeight, 160)
+        value: Math.min(root.weekHeight, 160)
         when: root.constrainPopup
         restoreMode: Binding.RestoreBindingOrValue
     }
@@ -117,12 +118,6 @@ ShellRoot {
         return null
     }
 
-    function assertStablePopupSize(popup) {
-        if (popup.contentWidth !== root.regularWidth || popup.contentHeight !== root.regularHeight)
-            throw new Error("Switching tab or period resized the popup: " + popup.contentWidth + "×" + popup.contentHeight
-                + " instead of " + root.regularWidth + "×" + root.regularHeight)
-    }
-
     function showLargestStatsFixture() {
         var stats = JSON.parse(JSON.stringify(service.model.stats))
         var days = []
@@ -150,13 +145,22 @@ ShellRoot {
         service.modelChanged()
     }
 
-    function assertStatsFit(popup) {
+    function assertAdaptivePopup(popup) {
         var scroll = popup.contentItem[0]
-        if (scroll.contentHeight > scroll.availableHeight + 1)
-            throw new Error("Stats " + first.period + " requires vertical scrolling: " + scroll.contentHeight + " > " + scroll.availableHeight)
-        var refresh = namedItem(scroll, "refresh-button")
-        var bottom = refresh.mapToItem(scroll, 0, refresh.height).y
-        if (bottom > scroll.height + 1) throw new Error("Stats footer is below the viewport")
+        if (root.regularWidth > 0 && popup.contentWidth !== root.regularWidth)
+            throw new Error("The annual view widened the popup")
+        if (scroll.availableHeight - scroll.contentHeight > 1)
+            throw new Error("Popup reserves blank space: " + scroll.availableHeight + " for " + scroll.contentHeight + " content")
+        if (popup.contentHeight > popup.availableCardHeight + 1)
+            throw new Error("Adaptive popup exceeds the available screen height")
+        if (scroll.contentHeight > scroll.availableHeight + 1) {
+            if (popup.contentHeight < popup.availableCardHeight - 1)
+                throw new Error("Popup scrolls before using the available screen height")
+        } else {
+            var refresh = namedItem(scroll, "refresh-button")
+            if (refresh.mapToItem(scroll, 0, refresh.height).y > scroll.height + 1)
+                throw new Error("Uncapped popup hid the refresh footer")
+        }
     }
 
     function capture(item, name) {
@@ -207,8 +211,7 @@ ShellRoot {
             if (service.todayCount !== 8 || service.identity.login !== "fixture") throw new Error("Shared fixture not published")
             if (first.service !== second.service) throw new Error("Widgets do not share a service")
             if (root.stage === 9) {
-                root.assertStablePopupSize(popupFor(first))
-                root.assertStatsFit(popupFor(first))
+                root.assertAdaptivePopup(popupFor(first))
                 if (root.capture(popupFor(first).contentItem[0].parent.parent, root.mode + "-" + first.period + "-card")) return
                 if (first.periodIndex < 2) { first.periodIndex++; return }
                 console.log("NATIVE_SMOKE_PASS " + root.mode)
@@ -226,8 +229,7 @@ ShellRoot {
                 } else if (service.lastSuccess <= root.beforeManualRefresh.stats || service.errorKind !== "") {
                     throw new Error("Manual Refresh did not publish fresh data")
                 }
-                root.assertStablePopupSize(popupFor(first))
-                root.assertStatsFit(popupFor(first))
+                root.assertAdaptivePopup(popupFor(first))
                 var refreshedContent = popupFor(first).contentItem[0]
                 if (Math.abs(namedItem(refreshedContent, "contribution-chart").contentX - root.annualBrowseX) > 1)
                     throw new Error("Refresh reset annual browsing")
@@ -262,10 +264,10 @@ ShellRoot {
             }
             if (root.stage === 3) {
                 var scrollContent = popup.contentItem[0]
-                root.assertStatsFit(popup)
+                root.assertAdaptivePopup(popup)
                 if (root.capture(barContent, "bar") || root.capture(scrollContent, "week")) return
                 root.regularWidth = popup.contentWidth
-                root.regularHeight = popup.contentHeight
+                root.weekHeight = popup.contentHeight
                 var trigger = namedItem(first, "github-trigger")
                 if (!trigger || trigger.implicitHeight !== bar.barSize || trigger.tooltipText !== ""
                     || !trigger.activeFocusOnTab || trigger.Accessible.name.indexOf("8 contributions") < 0)
@@ -319,8 +321,11 @@ ShellRoot {
                 return
             }
             if (root.stage === 4) {
-                root.assertStablePopupSize(popup)
-                root.assertStatsFit(popup)
+                root.assertAdaptivePopup(popup)
+                if (first.tabIndex === 0) {
+                    root.monthHeight = popup.contentHeight
+                    if (root.monthHeight <= root.weekHeight) throw new Error("Popup did not grow for the larger month view")
+                }
                 if (!textItem(linkProbe, "Authored · 2 of 42 shown") || !namedItem(linkProbe, "work-stale").visible
                     || !namedItem(linkProbe, "work-row-separator").visible)
                     throw new Error("Truncated preview total or independent work stale state missing")
@@ -332,7 +337,6 @@ ShellRoot {
                 if (!monthChart || monthChart.layout.columns !== 7 || monthChart.layout.rows < 5)
                     throw new Error("Thirty-day calendar layout missing")
                 first.tabIndex = 1
-                root.assertStablePopupSize(popup)
                 var prList = namedItem(popup.contentItem[0], "pr-work-list")
                 if (!prList || !prList.visible || !textItem(prList, "Fixture PR 1")
                     || !textItem(prList, "Authored · 1")
@@ -351,7 +355,6 @@ ShellRoot {
                 if (decodeURIComponent(root.openedUrl).indexOf("is:open author:fixture") < 0)
                     throw new Error("View all browser filters mismatch")
                 first.tabIndex = 2
-                root.assertStablePopupSize(popup)
                 var issueList = namedItem(popup.contentItem[0], "issue-work-list")
                 if (!issueList || !issueList.visible || !textItem(issueList, "Fixture Issue 1")
                     || !textItem(issueList, "Assigned · 1"))
@@ -369,8 +372,9 @@ ShellRoot {
                 return
             }
             if (root.stage === 5) {
-                root.assertStablePopupSize(popup)
-                root.assertStatsFit(popup)
+                root.assertAdaptivePopup(popup)
+                if (popup.contentHeight < popup.availableCardHeight - 1 && popup.contentHeight >= root.monthHeight)
+                    throw new Error("Popup did not shrink after leaving the month view")
                 var annualChart = namedItem(popup.contentItem[0], "contribution-chart")
                 if (first.periodIndex !== 2 || first.selectedStats.days.length < 365
                     || annualChart.layout.rows !== 7 || annualChart.layout.months.length < 12)
@@ -390,9 +394,7 @@ ShellRoot {
                     throw new Error("Annual calendar did not initially show newest dates in the fixed popup")
                 annualChart.contentX = 96
                 first.tabIndex = 1
-                root.assertStablePopupSize(popup)
                 first.tabIndex = 0
-                root.assertStablePopupSize(popup)
                 if (Math.abs(annualChart.contentX - 96) > 1) throw new Error("Tab switching reset annual browsing")
                 var lastDate = first.selectedStats.days[first.selectedStats.days.length - 1].date
                 var lastTile = namedItem(annualChart, "contribution-" + lastDate)
@@ -445,7 +447,6 @@ ShellRoot {
             if (first.popupOpen) throw new Error("Escape dismissal failed")
             root.constrainPopup = false
             first.toggle()
-            root.assertStablePopupSize(popup)
             if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
             // Native owner callback is also used by outside-click dismissal.
             popup.close()
@@ -462,7 +463,6 @@ ShellRoot {
                 browsing.contentX = 96
                 root.annualBrowseX = browsing.contentX
                 namedItem(popup.contentItem[0], "refresh-button").clicked()
-                root.assertStablePopupSize(popup)
                 if (!service.refreshing) throw new Error("Manual Refresh did not start")
             })
         } catch (error) {

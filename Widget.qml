@@ -76,7 +76,7 @@ BarWidget {
         owner: root
         open: root.popupOpen
         contentWidth: fittedContentWidth(Style.space(370))
-        contentHeight: cappedContentHeight(Style.space(520))
+        contentHeight: fittedContentHeight(content.implicitHeight)
         onOpenChanged: if (open) Qt.callLater(function() { tabs.itemAt(0).forceActiveFocus() })
 
         Controls.ScrollView {

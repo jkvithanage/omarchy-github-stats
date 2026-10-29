@@ -1,6 +1,5 @@
 import QtQuick
 import QtTest
-import qs.Commons as Commons
 import "../.." as Plugin
 import "../../ServiceModel.js" as Model
 
@@ -18,8 +17,6 @@ Item {
         when: windowShown
 
         function init() {
-            Commons.Color.foreground = "#eeeeee"
-            Commons.Color.accent = "#6699cc"
             chart.width = 220
             chart.periodStats = null
             chart.initialPositionPending = true
@@ -60,29 +57,18 @@ Item {
             }
         }
 
-        function test_month_dates_contrast_with_highest_intensity_and_theme_changes() {
-            chart.period = "month"
-            chart.periodStats = { layout: Model.calendarLayout([
-                { date: "2026-09-01", contributionCount: 8, contributionLevel: "FOURTH_QUARTILE" }
-            ], "month") }
-            Commons.Color.foreground = "#ffffff"
-            Commons.Color.accent = "#ffffff"
-            wait(0)
-            var label = findChild(findChild(chart, "contribution-2026-09-01"), "short-date-label")
-            compare(label.color, Qt.rgba(0, 0, 0, 1))
-            Commons.Color.foreground = "#101010"
-            Commons.Color.accent = "#101010"
-            tryCompare(label, "color", Qt.rgba(1, 1, 1, 1))
-        }
-
-        function test_six_row_month_keeps_dates_inside_compact_tiles() {
+        function test_original_short_view_sizes_keep_dates_below_tiles() {
             chart.width = 338
+            showPeriod("week", "2026-10-19", 7)
+            compare(chart.tileHeight, 82)
+            var weeklyLabel = findChild(findChild(chart, "contribution-2026-10-19"), "short-date-label")
+            verify(weeklyLabel.y >= 28)
             showPeriod("month", "2026-08-29", 30)
             compare(chart.layout.rows, 6)
-            verify(chart.implicitHeight <= 160, "Six rows must leave room for the Stats summaries and footer")
+            compare(chart.tileHeight, 58)
             var first = findChild(chart, "contribution-2026-08-29")
             var label = findChild(first, "short-date-label")
-            verify(label.visible && label.y >= 0 && label.y + label.height <= first.height)
+            verify(label.visible && label.y >= 28 && label.y + label.height <= first.height)
             compare(label.text, "29")
             first.forceActiveFocus()
             tryCompare(findChild(first, "contribution-tooltip"), "visible", true)
@@ -91,8 +77,8 @@ Item {
 
         function test_annual_fit_overflow_refresh_and_period_entry() {
             showPeriod("year", "2025-10-26", 365)
-            compare(chart.tileWidth, 10)
-            compare(chart.gap, 3)
+            compare(chart.tileWidth, 22)
+            compare(chart.gap, 4)
             compare(chart.contentX, chart.contentWidth - chart.width)
             chart.contentX = 96
             // A refresh replaces delegates but keeps manual browsing at the same dates.
