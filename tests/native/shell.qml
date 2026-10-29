@@ -431,11 +431,15 @@ ShellRoot {
                     emptyWork.data.groups[e].rows = []
                     emptyWork.data.groups[e].total = 0
                 }
+                var originalPreviewWidth = linkProbe.width
+                linkProbe.width = 180
                 linkProbe.section = emptyWork
                 var authoredEmpty = textItem(linkProbe, "No open PRs authored by you.")
                 var reviewEmpty = textItem(linkProbe, "No pending review requests from other authors.")
                 if (!authoredEmpty || !authoredEmpty.visible || !reviewEmpty || !reviewEmpty.visible)
                     throw new Error("Successful empty PR categories lack specific explanations")
+                if (reviewEmpty.lineCount < 2 || reviewEmpty.contentWidth > linkProbe.width + 1)
+                    throw new Error("Narrow review-request empty message is clipped instead of wrapping")
                 linkProbe.refreshing = true
                 if (authoredEmpty.visible || reviewEmpty.visible) throw new Error("Refreshing empty work looks completed")
                 linkProbe.refreshing = false
@@ -448,17 +452,24 @@ ShellRoot {
                     throw new Error("Failed empty work looks completed")
                 linkProbe.section = savedWorkSection
                 linkProbe.refreshing = Qt.binding(function() { return service.refreshing })
+                linkProbe.width = originalPreviewWidth
                 var originalIssues = issueLinkProbe.section
                 var emptyIssues = JSON.parse(JSON.stringify(originalIssues))
                 for (var n = 0; n < emptyIssues.data.groups.length; n++) {
                     emptyIssues.data.groups[n].rows = []
                     emptyIssues.data.groups[n].total = 0
                 }
+                var originalIssuePreviewWidth = issueLinkProbe.width
+                issueLinkProbe.width = 180
                 issueLinkProbe.section = emptyIssues
                 if (!textItem(issueLinkProbe, "No open issues authored by you.").visible
                     || !textItem(issueLinkProbe, "No open issues from other authors assigned to you.").visible)
                     throw new Error("Empty issue categories lack specific explanations")
+                var assignmentEmpty = textItem(issueLinkProbe, "No open issues from other authors assigned to you.")
+                if (assignmentEmpty.lineCount < 2 || assignmentEmpty.contentWidth > issueLinkProbe.width + 1)
+                    throw new Error("Narrow assignment empty message is clipped instead of wrapping")
                 issueLinkProbe.section = originalIssues
+                issueLinkProbe.width = originalIssuePreviewWidth
                 if (root.capture(popup.contentItem[0], "month")) return
                 if (root.capture(popup.contentItem[0].parent.parent, "month-card")) return
                 if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)

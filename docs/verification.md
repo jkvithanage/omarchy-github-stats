@@ -10,6 +10,8 @@ The initial QML regressions failed for absent clipboard guidance and countdown, 
 
 Integrated with #24, `make check` passes (23 service fixtures, 25 Qt cases, lint and manifest validation; existing host/theme lint warnings remain), and all six regular native smoke modes pass. Existing image-capture focus/visibility limitations recorded under #24 still apply; no capture run is counted as a verification pass for this change.
 
+Automated PR review caught long empty messages clipping at narrow widths. A native 180-pixel content-width regression first failed for the review-request explanation; empty messages now wrap. Both review-request and assignment explanations are checked for multiple lines and content fitting within the available width.
+
 ## Heatmap orientation — 2026-10-29 (#24)
 
 Today's UTC date has an underline below its intensity tile and accessible incomplete-day details. A shared color mapping drives tiles and the Less-to-More legend. Annual weekdays occupy a stationary gutter; Latest reveals newest dates without a request or focus change. The new QML regressions first failed for missing today/legend and fixed-weekday behavior. Tests exercise rollover, distinct focus/Today indicators, legend colors, fixed labels, newest-date navigation and preserved focus. Native tests verify Latest's focus and unchanged request serial while retaining original sizing, narrow caps, month labels and refresh/browsing behavior. Physical screen-reader and screen-edge limits remain unchanged.

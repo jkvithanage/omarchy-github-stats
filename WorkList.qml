@@ -82,6 +82,7 @@ Column {
                 text: root.sectionName === "PRs"
                     ? group.index === 0 ? "No open PRs authored by you." : "No pending review requests from other authors."
                     : group.index === 0 ? "No open issues authored by you." : "No open issues from other authors assigned to you."
+                wrapMode: Text.Wrap
                 color: Commons.Color.foreground
                 font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
