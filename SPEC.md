@@ -42,12 +42,13 @@ Each tile exposes its full date and contribution count on hover or keyboard focu
 
 ### Activity summaries
 
-Below the chart, show clearly labeled values for:
+Lead Stats with a prominent selected-period contribution total above the chart and an explicit visible period/date association. Below the chart, show the supporting activity metrics, with precise accessible meanings:
 
-- Contributions in the selected period.
 - Commit contributions in the selected period.
 - PRs authored in the selected period.
 - Issues authored in the selected period.
+
+Do not repeat the contribution total as a peer-level supporting metric. Keep current repository snapshots visually secondary using native typography, preserving original heatmap sizes and the narrow adaptive popup. Successful zero, loading, unavailable and stale data remain distinct.
 
 Use the corresponding GitHub contribution-collection fields for commit, PR, and issue summaries. Do not infer these from total calendar activity or from open work queues. In particular, PR and issue activity includes eligible creations that have since closed or merged.
 

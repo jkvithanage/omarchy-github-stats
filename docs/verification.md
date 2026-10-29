@@ -2,6 +2,12 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Stats hierarchy — 2026-10-29 (#22)
+
+Stats leads with a native display-size contribution total and explicit selected-period date heading. Supporting metrics retain precise accessible explanations; the duplicate contribution metric is removed, and the current Repository heading is quieter. The native regression first failed because no primary total existed. Added assertions distinguish successful zero, missing data and initial loading, and check the period association in every Stats view. Existing worst-case six-row month, six language shares, independent stale states, theme changes, native caps and original heatmap-size checks remain in place. Physical screen-reader and screen-edge verification limits are unchanged.
+
+`make check` and all six `make smoke` modes pass. The native fixture now lets focus-grab close/reopen events settle on separate ticks instead of toggling several times in one event. Fixture renders in `/tmp/stats-22-captures` were inspected, including the six-row month, all six language shares and stale guidance. Existing dynamic host/theme lint warnings remain.
+
 ## Active-tab freshness — 2026-10-29 (#20)
 
 The footer follows Activity, PRs or Issues and labels stale sections explicitly, using the relative-time presentation from #19. Exact original timestamps for every section remain available on hover/focus. Work-list messages distinguish initial loading, refreshing cached work and showing saved work after failure; redundant stale timestamps below the list were removed. The native regression first failed because PRs inherited Activity's timestamp. Native coverage now supplies deliberately different section times and checks tab changes. `make check` passes (23 service fixtures, 16 Qt cases, lint and manifest validation; existing host/theme warnings remain), and all six `make smoke` modes pass. Existing stale-refresh, repository-only failure, account isolation and retry checks are retained. Physical screen-reader and screen-edge verification limits remain unchanged.

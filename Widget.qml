@@ -165,6 +165,19 @@ BarWidget {
                         }
                     }
 
+                    InfoText {
+                        id: contributionTotal
+                        objectName: "contribution-total"
+                        width: parent.width
+                        text: root.selectedStats ? root.selectedStats.contributions + " contributions"
+                            : root.service && root.service.refreshing ? "Loading contributions…" : "Contributions unavailable"
+                        font.pixelSize: Style.font.display
+                        font.bold: true
+                        tooltipText: "Activities GitHub counts in the selected period’s contribution calendar, including more than commits."
+                        Accessible.name: text + " · " + ["7 days", "30 days", "12 months"][root.periodIndex]
+                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(contributionTotal)
+                    }
+
                     Row {
                         id: activityHeader
                         width: parent.width
@@ -172,7 +185,8 @@ BarWidget {
                         Text {
                             width: parent.width - calendarInfo.width - parent.spacing
                                 - (activityStale.visible ? activityStale.width + parent.spacing : 0)
-                            text: "Activity" + (root.selectedStats ? " · " + root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) : " unavailable")
+                            text: ["Last 7 days", "Last 30 days", "Last 12 months"][root.periodIndex]
+                                + (root.selectedStats ? " · " + root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) : " · Activity unavailable")
                             color: Commons.Color.foreground
                             font.family: Style.font.family
                             font.pixelSize: Style.font.bodySmall
@@ -210,12 +224,11 @@ BarWidget {
                     Grid {
                         id: metricsGrid
                         width: parent.width
-                        columns: 2
+                        columns: 3
                         columnSpacing: Style.space(12)
                         rowSpacing: Style.space(4)
                         Repeater {
                             model: root.selectedStats ? [
-                                { label: "Contributions", accessibleLabel: "Contributions", value: root.selectedStats.contributions, meaning: "Activities GitHub counts in the selected period’s contribution calendar, including more than commits." },
                                 { label: "Commits", accessibleLabel: "Commit contributions", value: root.selectedStats.commitContributions, meaning: "Commit contributions GitHub counts in the selected period, subject to eligibility and visibility rules." },
                                 { label: "PRs", accessibleLabel: "PRs authored", value: root.selectedStats.prsAuthored, meaning: "PRs authored by you in the selected period, whether open or closed." },
                                 { label: "Issues", accessibleLabel: "Issues authored", value: root.selectedStats.issuesAuthored, meaning: "Issues authored by you in the selected period, whether open or closed." }
@@ -224,7 +237,7 @@ BarWidget {
                                 id: metric
                                 required property var modelData
                                 objectName: "metric-" + modelData.label
-                                width: (metricsGrid.width - metricsGrid.columnSpacing) / 2
+                                width: (metricsGrid.width - metricsGrid.columnSpacing * 2) / 3
                                 text: modelData.label + ": " + modelData.value
                                 font.pixelSize: Style.font.body
                                 tooltipText: modelData.meaning
@@ -273,7 +286,6 @@ BarWidget {
                             width: parent.width - stars.width - parent.spacing
                                 - (repositoryStale.visible ? repositoryStale.width + parent.spacing : 0)
                             text: "Repositories · current"
-                            font.bold: true
                             tooltipText: root.repositoryExplanation
                             onActiveFocusChanged: if (activeFocus) root.revealPopupItem(repositoryInfo)
                         }
