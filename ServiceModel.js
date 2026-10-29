@@ -1,7 +1,7 @@
 // In-memory service state. The QML adapter owns processes and the wall clock.
 var refreshInterval = 15 * 60 * 1000;
 var identityQuery = "query { viewer { id login } }";
-var summaryFields = "totalCommitContributions totalPullRequestContributions totalIssueContributions ";
+var summaryFields = "totalCommitContributions totalPullRequestContributions totalIssueContributions restrictedContributionsCount ";
 var calendarQuery = "query($login: String!, $from: DateTime!, $weekFrom: DateTime!, $monthFrom: DateTime!, $to: DateTime!) { "
     + "viewer { id login } user(login: $login) { id login "
     + "contributionsCollection(from: $from, to: $to) { " + summaryFields + "contributionCalendar { "
@@ -129,7 +129,8 @@ function validCount(value) {
 
 function periodStats(calendar, collection, from, to) {
     if (!collection || !validCount(collection.totalCommitContributions)
-        || !validCount(collection.totalPullRequestContributions) || !validCount(collection.totalIssueContributions)) return null;
+        || !validCount(collection.totalPullRequestContributions) || !validCount(collection.totalIssueContributions)
+        || !validCount(collection.restrictedContributionsCount)) return null;
     var days = [];
     var total = 0;
     for (var date = Date.parse(from); date <= Date.parse(to); date += 86400000) {
@@ -140,7 +141,8 @@ function periodStats(calendar, collection, from, to) {
     }
     return { from: from, to: to, days: days, contributions: total,
         commitContributions: collection.totalCommitContributions,
-        prsAuthored: collection.totalPullRequestContributions, issuesAuthored: collection.totalIssueContributions };
+        prsAuthored: collection.totalPullRequestContributions, issuesAuthored: collection.totalIssueContributions,
+        restrictedContributions: collection.restrictedContributionsCount };
 }
 
 function accountStats(calendar, user, at) {

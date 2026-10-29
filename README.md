@@ -67,6 +67,8 @@ The plugin is read-only: it fetches GitHub data and opens browser links. Credent
 
 Contribution counts follow GitHub's eligibility and visibility rules. Accessible private activity and repository/work coverage depend on the effective credentials and GitHub's rules; the widget does not promise private-data completeness. Authored activity summaries include eligible creations that have since closed or merged. Open-work previews are independent of the selected period, and View all delegates full-list browsing to GitHub.
 
+GitHub requires the optional `read:user` scope for private/internal contribution details, even with `repo` access. Without it, the heatmap can include private activity while commit, PR, and issue summaries omit it. When GitHub reports restricted contributions, Stats shows their selected-period count and marks the category counts with `+` as lower bounds. To authorize accessible private details, run `gh auth refresh --hostname github.com --scopes read:user`, complete GitHub's authorization, then refresh the widget. Activity your credentials cannot access can remain restricted.
+
 ## Verification and development
 
 ```sh
