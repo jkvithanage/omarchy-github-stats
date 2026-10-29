@@ -209,6 +209,33 @@ ShellRoot {
                 var expected = { auth: "authentication", network: "network", rate: "rate-limit", hang: "timeout" }[root.mode]
                 if (service.errorKind !== expected) throw new Error("Unexpected service failure state")
                 if (service.lastSuccess !== 0 || service.todayCount !== null) throw new Error("Failure was presented as data")
+                if (root.stage !== 90) {
+                    first.toggle()
+                    root.stage = 90
+                    return
+                }
+                var failurePopup = popupFor(first)
+                root.assertAdaptivePopup(failurePopup)
+                var failureContent = failurePopup.contentItem[0]
+                var guidance = namedItem(failureContent, "refresh-status")
+                if (!guidance || !guidance.visible || guidance.text.length === 0)
+                    throw new Error("Failure recovery guidance is missing")
+                var copyCommand = namedItem(failureContent, "copy-login-command")
+                if (copyCommand.visible !== (expected === "authentication")
+                    || expected === "authentication" && copyCommand.tooltipText !== "gh auth login --hostname github.com")
+                    throw new Error("Authentication copy guidance is missing or shown for another failure")
+                var failureRefresh = namedItem(failureContent, "refresh-button")
+                if (expected === "rate-limit") {
+                    var countdown = namedItem(failureContent, "retry-countdown")
+                    if (!countdown.visible || countdown.text.indexOf("Retry available in ") !== 0 || failureRefresh.enabled)
+                        throw new Error("Rate-limit countdown or disabled Refresh missing")
+                    var savedClock = service.now
+                    var serialAtDeadline = service.model.serial
+                    service.now = service.retryAt
+                    if (!failureRefresh.enabled || service.model.serial !== serialAtDeadline)
+                        throw new Error("Refresh deadline is wrong or countdown started a request")
+                    service.now = savedClock
+                } else if (!failureRefresh.enabled) throw new Error("Recoverable failure disabled manual Refresh")
                 console.log("NATIVE_SMOKE_PASS " + root.mode)
                 Qt.quit()
                 return
@@ -397,6 +424,52 @@ ShellRoot {
                     throw new Error("Initial loading is presented as saved or successful data")
                 linkProbe.section = savedWorkSection
                 linkProbe.refreshing = Qt.binding(function() { return service.refreshing })
+                var emptyWork = JSON.parse(JSON.stringify(savedWorkSection))
+                emptyWork.stale = false
+                emptyWork.errorKind = ""
+                for (var e = 0; e < emptyWork.data.groups.length; e++) {
+                    emptyWork.data.groups[e].rows = []
+                    emptyWork.data.groups[e].total = 0
+                }
+                var originalPreviewWidth = linkProbe.width
+                linkProbe.width = 180
+                linkProbe.section = emptyWork
+                var authoredEmpty = textItem(linkProbe, "No open PRs authored by you.")
+                var reviewEmpty = textItem(linkProbe, "No pending review requests from other authors.")
+                if (!authoredEmpty || !authoredEmpty.visible || !reviewEmpty || !reviewEmpty.visible)
+                    throw new Error("Successful empty PR categories lack specific explanations")
+                if (reviewEmpty.lineCount < 2 || reviewEmpty.contentWidth > linkProbe.width + 1)
+                    throw new Error("Narrow review-request empty message is clipped instead of wrapping")
+                linkProbe.refreshing = true
+                if (authoredEmpty.visible || reviewEmpty.visible) throw new Error("Refreshing empty work looks completed")
+                linkProbe.refreshing = false
+                emptyWork.stale = true
+                emptyWork.errorKind = "network"
+                linkProbe.section = JSON.parse(JSON.stringify(emptyWork))
+                var failedAuthoredEmpty = textItem(linkProbe, "No open PRs authored by you.")
+                var failedReviewEmpty = textItem(linkProbe, "No pending review requests from other authors.")
+                if (!failedAuthoredEmpty || !failedReviewEmpty || failedAuthoredEmpty.visible || failedReviewEmpty.visible)
+                    throw new Error("Failed empty work looks completed")
+                linkProbe.section = savedWorkSection
+                linkProbe.refreshing = Qt.binding(function() { return service.refreshing })
+                linkProbe.width = originalPreviewWidth
+                var originalIssues = issueLinkProbe.section
+                var emptyIssues = JSON.parse(JSON.stringify(originalIssues))
+                for (var n = 0; n < emptyIssues.data.groups.length; n++) {
+                    emptyIssues.data.groups[n].rows = []
+                    emptyIssues.data.groups[n].total = 0
+                }
+                var originalIssuePreviewWidth = issueLinkProbe.width
+                issueLinkProbe.width = 180
+                issueLinkProbe.section = emptyIssues
+                if (!textItem(issueLinkProbe, "No open issues authored by you.").visible
+                    || !textItem(issueLinkProbe, "No open issues from other authors assigned to you.").visible)
+                    throw new Error("Empty issue categories lack specific explanations")
+                var assignmentEmpty = textItem(issueLinkProbe, "No open issues from other authors assigned to you.")
+                if (assignmentEmpty.lineCount < 2 || assignmentEmpty.contentWidth > issueLinkProbe.width + 1)
+                    throw new Error("Narrow assignment empty message is clipped instead of wrapping")
+                issueLinkProbe.section = originalIssues
+                issueLinkProbe.width = originalIssuePreviewWidth
                 if (root.capture(popup.contentItem[0], "month")) return
                 if (root.capture(popup.contentItem[0].parent.parent, "month-card")) return
                 if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)

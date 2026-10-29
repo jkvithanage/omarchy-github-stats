@@ -469,10 +469,10 @@ Service.prototype.statusText = function(now) {
     var messages = {
         gh: "GitHub CLI is missing or nonfunctional. Check gh on the shell's PATH.",
         authentication: "Authentication needed: run gh auth login --hostname github.com in a terminal.",
-        permission: "The effective GitHub credentials cannot access the requested data.",
+        permission: "The effective GitHub credentials cannot access the requested data. Check account access with gh auth status --hostname github.com.",
         network: "Cannot reach GitHub. Check the network connection.",
         timeout: "GitHub request timed out. Try Refresh when connectivity returns.",
-        response: "GitHub returned an incomplete or invalid response.",
+        response: "GitHub returned an incomplete or invalid response. Press Refresh to try again.",
         account: "The effective GitHub account changed during refresh. Refresh to load the new account.",
         "rate-limit": "GitHub rate limit reached. Waiting before retrying."
     };

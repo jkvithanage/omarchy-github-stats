@@ -12,7 +12,7 @@ lint:
 	mkdir "$$imports/qs"; \
 	ln -s "$(OMARCHY_PATH)/shell/Ui" "$$imports/qs/Ui"; \
 	ln -s "$(OMARCHY_PATH)/shell/Commons" "$$imports/qs/Commons"; \
-	$(QT_BIN)/qmllint -I "$$imports" Service.qml Widget.qml Heatmap.qml WorkList.qml InfoText.qml RelativeTime.qml
+	$(QT_BIN)/qmllint -I "$$imports" Service.qml Widget.qml Heatmap.qml WorkList.qml InfoText.qml RelativeTime.qml RecoveryStatus.qml
 
 manifest:
 	$(OMARCHY_PATH)/bin/omarchy-plugin-validate .

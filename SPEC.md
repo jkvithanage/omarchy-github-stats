@@ -91,6 +91,8 @@ Include open issues authored by or assigned to the account. Exclude PRs from iss
 
 Work lists are independent of the selected Stats period. Selecting 7 days does not hide an older open issue or PR.
 
+Completed empty categories explicitly name authored PRs, pending review requests from other authors, authored issues or issues from other authors assigned to the account. Suppress completed-empty messages during loading, refresh and failure/stale states. Authentication recovery offers a fixed-command clipboard action with visible and accessible confirmation, without starting interactive login or handling credentials. Rate-limit guidance shows remaining wait and the exact local retry time; the existing Refresh deadline remains authoritative. Permission and incomplete-response guidance include a practical next step.
+
 PRs and Issues tab counts sum their disjoint category API totals, not preview lengths. Abbreviate large counts only in visible labels and retain exact totals in accessible names and tooltips. Distinguish unknown totals from successful zero and mark retained stale totals. Counts may sit below tab labels under narrow screen caps. Each work tab summarizes its secondary category explicitly as review requests or assignments from other authors, preserving authored-first grouping and overlap badges without new API requests.
 
 ## Architecture and data ownership

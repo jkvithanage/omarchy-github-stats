@@ -2,6 +2,16 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Recovery and empty states — 2026-10-29 (#25)
+
+Authentication guidance copies only the fixed login command through Qt's clipboard support, with visible and politely announced confirmation reset on hiding/error changes. Rate limits show remaining wait and exact local retry time, using the existing service clock/deadline; manual Refresh eligibility is unchanged. Permission and incomplete-response messages include next steps. Completed empty work categories have role-specific wording and remain hidden during refresh or stale/failure states.
+
+The initial QML regressions failed for absent clipboard guidance and countdown, and the native empty-work regression failed for generic messages. Clipboard contents, keyboard/accessibility activation and reset behavior are checked offscreen without changing the desktop clipboard. Native failure modes now open the popup and assert guidance, authentication-action visibility, countdown/Refresh deadline and unchanged request serial; all four empty categories are checked with refresh/failure suppression. Physical clipboard behavior and screen-reader announcement quality remain unverified, alongside existing screen-edge limits.
+
+Integrated with #24, `make check` passes (23 service fixtures, 25 Qt cases, lint and manifest validation; existing host/theme lint warnings remain), and all six regular native smoke modes pass. Existing image-capture focus/visibility limitations recorded under #24 still apply; no capture run is counted as a verification pass for this change.
+
+Automated PR review caught long empty messages clipping at narrow widths. A native 180-pixel content-width regression first failed for the review-request explanation; empty messages now wrap. Both review-request and assignment explanations are checked for multiple lines and content fitting within the available width.
+
 ## Heatmap orientation — 2026-10-29 (#24)
 
 Today's UTC date has an underline below its intensity tile and accessible incomplete-day details. A shared color mapping drives tiles and the Less-to-More legend. Annual weekdays occupy a stationary gutter; Latest reveals newest dates without a request or focus change. The new QML regressions first failed for missing today/legend and fixed-weekday behavior. Tests exercise rollover, distinct focus/Today indicators, legend colors, fixed labels, newest-date navigation and preserved focus. Native tests verify Latest's focus and unchanged request serial while retaining original sizing, narrow caps, month labels and refresh/browsing behavior. Physical screen-reader and screen-edge limits remain unchanged.
