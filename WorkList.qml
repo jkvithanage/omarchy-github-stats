@@ -77,8 +77,11 @@ Column {
             }
             Text {
                 width: root.width
-                visible: group.modelData.total === 0
-                text: "No matching open work."
+                visible: group.modelData.total === 0 && !root.refreshing && root.section !== null
+                    && !root.section.stale && !root.section.errorKind
+                text: root.sectionName === "PRs"
+                    ? group.index === 0 ? "No open PRs authored by you." : "No pending review requests from other authors."
+                    : group.index === 0 ? "No open issues authored by you." : "No open issues from other authors assigned to you."
                 color: Commons.Color.foreground
                 font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall

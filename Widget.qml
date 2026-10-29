@@ -375,16 +375,11 @@ BarWidget {
 
                 PanelSeparator {}
 
-                Text {
-                    objectName: "refresh-status"
+                RecoveryStatus {
                     visible: root.statusNeedsAttention
                     width: parent.width
-                    text: root.service ? root.service.statusText : "Waiting for the shared GitHub service."
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                    color: Commons.Color.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.bodySmall
+                    service: root.service
+                    onActionFocused: function(action) { root.revealPopupItem(action) }
                 }
 
                 Row {

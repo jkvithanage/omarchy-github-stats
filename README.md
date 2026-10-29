@@ -59,6 +59,8 @@ The footer describes the visible section (Activity, PRs or Issues) with a relati
 
 For authentication errors, run `gh auth status --hostname github.com`, recover with `gh auth login --hostname github.com`, then press Refresh. If the widget reports missing/nonfunctional `gh` while terminal commands work, check the shell session's PATH and noninteractive version-manager setup. After correcting session startup environment, use `omarchy restart shell` to let the shell inherit it. Network, permission, timeout, rate-limit, and incomplete-response states have separate guidance in the popup; failures are never shown as zero activity.
 
+Authentication guidance includes **Copy login command**, with visible and accessible confirmation; it copies only the fixed login command and does not start a terminal or login flow. Rate-limit guidance shows a live remaining wait and exact local retry time; Refresh stays disabled until that deadline. Completed empty work categories identify authored PRs, review requests from other authors, authored issues or assignments from other authors. Those empty messages are hidden while refreshing or showing failed/stale results.
+
 ## Data and access
 
 The plugin is read-only: it fetches GitHub data and opens browser links. Credentials remain managed by `gh`; the plugin neither extracts nor stores tokens. Account responses stay in memory and are not logged or persisted by the plugin. The widget requests no additional permissions or separate credential service.
