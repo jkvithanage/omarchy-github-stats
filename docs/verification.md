@@ -2,6 +2,10 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Active-tab freshness — 2026-10-29 (#20)
+
+The footer follows Activity, PRs or Issues and labels stale sections explicitly, using the relative-time presentation from #19. Exact original timestamps for every section remain available on hover/focus. Work-list messages distinguish initial loading, refreshing cached work and showing saved work after failure; redundant stale timestamps below the list were removed. The native regression first failed because PRs inherited Activity's timestamp. Native coverage now supplies deliberately different section times and checks tab changes. `make check` passes (23 service fixtures, 16 Qt cases, lint and manifest validation; existing host/theme warnings remain), and all six `make smoke` modes pass. Existing stale-refresh, repository-only failure, account isolation and retry checks are retained. Physical screen-reader and screen-edge verification limits remain unchanged.
+
 ## Linked work titles — 2026-10-29 (#19)
 
 PR and issue titles are now the primary browser links, replacing separate Open buttons. Relative update labels refresh while visible and retain exact local timestamps on hover/focus. Metadata, category totals, badges and View all URLs are preserved. The native title-link regression failed before implementation. `make check` passes (23 service fixtures, 16 Qt cases, lint and manifest validation; existing dynamic host/theme lint warnings remain). `make smoke` passes all six modes, including title URLs, truncated totals, badges and constrained focus reveal. QML tests exercise wrapped-title Return/Space, pointer and accessibility activation, and relative/exact timestamp presentation.

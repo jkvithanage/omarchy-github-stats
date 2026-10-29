@@ -82,7 +82,7 @@ Include open issues authored by or assigned to the account. Exclude PRs from iss
 - Display each item's title, repository, number, role, and update time. Mark private repositories and draft PRs where relevant.
 - Show full category totals separately from the number of preview rows. Use API totals, not preview lengths.
 - Open individual items through keyboard-operable linked titles with visible hover/focus affordances. Keep repository/number and role/private/draft details; omit a redundant separate Open button. Update times use relative labels for recent work and concise local dates for older work, with exact local timestamps available on hover/focus and through accessible descriptions. Labels update while visible without fetching data. Provide a **View all** link for each category, preserving its open-state, account-role, and overlap-exclusion filters.
-- Provide explicit empty, loading, and failed states. Do not show a completed empty list while its request is still loading.
+- Provide explicit empty, initial-loading, refreshing-saved-data, and failed states. Identify retained work as saved data after a failed refresh. Do not show a completed empty list while its request is still loading. Footer freshness follows the active tab's section with concise relative wording and exact original local timestamps on hover/focus and in accessible descriptions. Stats labels Activity freshness and exposes Repository freshness independently.
 
 Work lists are independent of the selected Stats period. Selecting 7 days does not hide an older open issue or PR.
 

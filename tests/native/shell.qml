@@ -329,6 +329,19 @@ ShellRoot {
                 if (!textItem(linkProbe, "Authored · 2 of 42 shown") || !namedItem(linkProbe, "work-stale").visible
                     || !namedItem(linkProbe, "work-row-separator").visible)
                     throw new Error("Truncated preview total or independent work stale state missing")
+                var workStatus = namedItem(linkProbe, "work-stale")
+                if (workStatus.text !== "Showing saved PRs · refresh failed."
+                    || workStatus.tooltipText.indexOf(new Date(linkProbe.section.lastSuccess).toLocaleString()) < 0)
+                    throw new Error("Saved-work failure message or original timestamp missing")
+                linkProbe.refreshing = true
+                if (workStatus.text !== "Refreshing PRs · showing saved data…")
+                    throw new Error("Refreshing cached work is indistinguishable from initial loading")
+                var savedWorkSection = linkProbe.section
+                linkProbe.section = null
+                if (workStatus.text !== "Loading PRs…" || workStatus.tooltipText !== "No successful update yet.")
+                    throw new Error("Initial loading is presented as saved or successful data")
+                linkProbe.section = savedWorkSection
+                linkProbe.refreshing = Qt.binding(function() { return service.refreshing })
                 if (root.capture(popup.contentItem[0], "month")) return
                 if (root.capture(popup.contentItem[0].parent.parent, "month-card")) return
                 if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)
@@ -336,6 +349,20 @@ ShellRoot {
                 var monthChart = namedItem(popup.contentItem[0], "contribution-chart")
                 if (!monthChart || monthChart.layout.columns !== 7 || monthChart.layout.rows < 5)
                     throw new Error("Thirty-day calendar layout missing")
+                first.tabIndex = 1
+                var prsBeforeFreshness = service.model.prs
+                var olderPrs = JSON.parse(JSON.stringify(prsBeforeFreshness))
+                olderPrs.lastSuccess = service.lastSuccess - 120000
+                service.model.prs = olderPrs
+                service.modelChanged()
+                var tabFreshness = namedItem(popup.contentItem[0], "refresh-freshness")
+                if (tabFreshness.timestamp !== olderPrs.lastSuccess || tabFreshness.text.indexOf("PRs") < 0)
+                    throw new Error("PR footer incorrectly uses Activity freshness")
+                first.tabIndex = 2
+                if (tabFreshness.timestamp !== service.issues.lastSuccess || tabFreshness.text.indexOf("Issues") < 0)
+                    throw new Error("Issue footer incorrectly uses Activity freshness")
+                service.model.prs = prsBeforeFreshness
+                service.modelChanged()
                 first.tabIndex = 1
                 var prList = namedItem(popup.contentItem[0], "pr-work-list")
                 if (!prList || !prList.visible || !namedItem(prList, "work-link-1")

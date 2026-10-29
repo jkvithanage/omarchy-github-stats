@@ -23,6 +23,9 @@ BarWidget {
     readonly property string calendarExplanation: "Dates and daily totals follow GitHub’s contribution calendar using UTC dates. Today is incomplete. Update times use your local timezone."
     readonly property string repositoryExplanation: "Current snapshot of personally owned public and accessible private repositories, excluding forks and including archived repositories. Independent of the selected period."
     readonly property bool statusNeedsAttention: !service || service.refreshing || service.errorKind !== "" || !service.stats || service.todayCount === null
+    readonly property string activeSectionName: ["Activity", "PRs", "Issues"][tabIndex]
+    readonly property var activeSection: !service ? null : tabIndex === 0
+        ? { lastSuccess: service.lastSuccess, stale: service.stale } : tabIndex === 1 ? service.prs : service.issues
 
     function sectionFreshness(section) {
         return section && section.lastSuccess > 0 ? new Date(section.lastSuccess).toLocaleString() + (section.stale ? " · stale" : "") : "not loaded"
@@ -342,13 +345,13 @@ BarWidget {
                 Row {
                     width: parent.width
                     spacing: Style.space(8)
-                    InfoText {
+                    RelativeTime {
                         id: freshness
                         objectName: "refresh-freshness"
                         width: parent.width - refreshButton.width - parent.spacing
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.service && root.service.lastSuccess > 0
-                            ? "Updated " + new Date(root.service.lastSuccess).toLocaleString(Qt.locale(), Locale.ShortFormat) : "No successful update yet."
+                        timestamp: root.activeSection ? root.activeSection.lastSuccess : 0
+                        subject: root.activeSectionName + (root.activeSection && root.activeSection.stale ? " · stale" : "")
                         font.pixelSize: Style.font.caption
                         tooltipText: root.service ? [
                             "Activity: " + root.sectionFreshness({ lastSuccess: root.service.lastSuccess, stale: root.service.stale }),
