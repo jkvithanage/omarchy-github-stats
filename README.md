@@ -7,6 +7,8 @@ A native Omarchy bar plugin for personal GitHub contributions, pull requests, an
 V1 features and verification documentation are complete. See the [verification record](docs/verification.md) for tested versions, automated evidence, maintainer-confirmed desktop checks, and remaining screen-reader, multi-monitor, and clean-install verification limits.
 
 - **Stats:** 7 days, 30 days, and 12 months, with Sunday-first contribution heatmaps, theme colors, hover/focus date and count details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Reopening resets to Stats and 7 days; switching tabs retains the period during that opening.
+
+Keyboard users enter a contribution heatmap with Tab, browse dates with arrow keys, and leave with Tab or Shift+Tab. A new period starts at the latest available date; re-entry remembers the focused date, and refreshes preserve it while it remains in the period. Padding is skipped and focused dates scroll into view.
 - **Current repository snapshots:** Stars and the top five Repository languages plus Other, from complete repository/language pagination. The scope is personally owned public and accessible private repositories, excluding forks and including archives. Language shares describe repository code bytes, independently of the Stats period.
 
 Stats leads with the selected-period contribution total, followed by its date range and heatmap. Commit contributions, authored PRs and authored issues remain supporting metrics; current Repository snapshots are visually secondary and independent of that period.

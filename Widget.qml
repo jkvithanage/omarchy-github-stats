@@ -41,7 +41,7 @@ BarWidget {
     }
     onTabIndexChanged: if (popupScroll.contentItem) popupScroll.contentItem.contentY = 0
     function toggle() {
-        if (!popupOpen) { tabIndex = 0; periodIndex = 0 }
+        if (!popupOpen) { tabIndex = 0; periodIndex = 0; chart.resetKeyboardEntry() }
         popupOpen = !popupOpen
     }
 

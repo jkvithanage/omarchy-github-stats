@@ -40,6 +40,8 @@ Fetch an annual contribution calendar and preserve its returned dates, counts, a
 
 Each tile exposes its full date and contribution count on hover or keyboard focus. The contribution total covers the displayed dates. Calendar counts are GitHub contributions, not commits alone.
 
+Each populated heatmap has one sequential Tab stop. First entry for a selected period focuses today when available, otherwise the latest available date. Arrow keys follow the chart arrangement, skip padding and stop at boundaries; Tab/Shift+Tab leave the chart. Re-entry remembers the browsed date, including across refreshes while it remains available. Missing/empty charts add no Tab stop; rollover or removed coverage falls back to the latest available date.
+
 ### Activity summaries
 
 Lead Stats with a prominent selected-period contribution total above the chart and an explicit visible period/date association. Below the chart, show the supporting activity metrics, with precise accessible meanings:

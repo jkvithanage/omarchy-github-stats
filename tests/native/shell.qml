@@ -316,7 +316,7 @@ ShellRoot {
                     throw new Error("Complete repository snapshots missing")
                 var date = service.stats.periods.week.days[0].date
                 var tile = namedItem(scrollContent, "contribution-" + date)
-                if (!tile || !tile.activeFocusOnTab || tile.Accessible.name.indexOf(date) < 0)
+                if (!tile || tile.Accessible.name.indexOf(date) < 0)
                     throw new Error("Accessible contribution tile missing")
                 tile.forceActiveFocus()
                 if (!tile.activeFocus) throw new Error("Tile did not receive native focus")
@@ -524,7 +524,22 @@ ShellRoot {
                 root.stage = 72
                 return
             }
-            if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Reopen did not reset Stats and seven days")
+            if (root.stage === 72) {
+                if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Reopen did not reset Stats and seven days")
+                var weeklyChart = namedItem(popup.contentItem[0], "contribution-chart")
+                namedItem(weeklyChart, "contribution-" + service.stats.periods.week.days[0].date).forceActiveFocus()
+                first.close()
+                root.stage = 73
+                return
+            }
+            if (root.stage === 73) {
+                first.toggle()
+                root.stage = 74
+                return
+            }
+            var reopenedChart = namedItem(popup.contentItem[0], "contribution-chart")
+            if (reopenedChart.entryDate !== service.stats.periods.week.days[6].date)
+                throw new Error("New popup session retained an older weekly keyboard entry")
             root.beforeManualRefresh = { stats: service.lastSuccess, repositories: service.repositories.lastSuccess,
                 prs: service.prs.lastSuccess, issues: service.issues.lastSuccess }
             root.stage = 8
