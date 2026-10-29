@@ -12,16 +12,21 @@ BarWidget {
     readonly property var service: bar && bar.shell ? bar.shell.serviceFor(moduleName) : null
     property bool popupOpen: false
     property int tabIndex: 0
-    property string detailDate: ""
     property int periodIndex: 0
     readonly property string period: ["week", "month", "year"][periodIndex]
     readonly property var selectedStats: service && service.stats ? service.stats.periods[period] : null
-    readonly property var detailDay: service && service.calendar ? service.calendar[detailDate] : null
     readonly property var repositoryState: service ? service.repositories : null
     readonly property var repositorySnapshot: repositoryState ? repositoryState.data : null
     readonly property string countText: service && service.todayCount !== null ? String(service.todayCount) : "—"
-    readonly property string description: "GitHub: " + (countText === "—" ? "today's contributions unavailable" : countText + " contributions today (UTC)")
+    readonly property string description: "GitHub: " + (countText === "—" ? "today's contributions unavailable" : countText + " contributions today")
 
+    readonly property string calendarExplanation: "Dates and daily totals follow GitHub’s contribution calendar using UTC dates. Today is incomplete. Update times use your local timezone."
+    readonly property string repositoryExplanation: "Current snapshot of personally owned public and accessible private repositories, excluding forks and including archived repositories. Independent of the selected period."
+    readonly property bool statusNeedsAttention: !service || service.refreshing || service.errorKind !== "" || !service.stats || service.todayCount === null
+
+    function sectionFreshness(section) {
+        return section && section.lastSuccess > 0 ? new Date(section.lastSuccess).toLocaleString() + (section.stale ? " · stale" : "") : "not loaded"
+    }
     function close() { popupOpen = false }
     function revealPopupItem(item) {
         var viewport = popupScroll.contentItem
@@ -33,25 +38,35 @@ BarWidget {
     }
     onTabIndexChanged: if (popupScroll.contentItem) popupScroll.contentItem.contentY = 0
     function toggle() {
-        if (!popupOpen) { tabIndex = 0; periodIndex = 0; detailDate = "" }
+        if (!popupOpen) { tabIndex = 0; periodIndex = 0 }
         popupOpen = !popupOpen
     }
 
     implicitWidth: trigger.implicitWidth
     implicitHeight: trigger.implicitHeight
 
-    Button {
+    WidgetButton {
         id: trigger
+        objectName: "github-trigger"
+        bar: root.bar
         anchors.centerIn: parent
-        iconText: root.vertical ? "" : ""
-        text: root.vertical ? "\n" + root.countText : root.countText
-        tooltipText: root.description
-        fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
-        foreground: root.bar ? root.bar.barForeground : Commons.Color.foreground
-        focusable: true
+        text: "" + (root.vertical ? "\n" : " ") + root.countText
+        activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: root.description
-        onClicked: root.toggle()
+        onPressed: function(button) { if (button === Qt.LeftButton) root.toggle() }
+        Keys.onReturnPressed: root.toggle()
+        Keys.onEnterPressed: root.toggle()
+        Keys.onSpacePressed: root.toggle()
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            visible: trigger.activeFocus
+            color: "transparent"
+            border.width: 1
+            border.color: trigger.foreground
+            radius: Style.cornerRadius
+        }
     }
 
     PopupCard {
@@ -80,7 +95,7 @@ BarWidget {
             Column {
                 id: content
                 width: parent.width
-                spacing: Style.space(12)
+                spacing: Style.space(6)
 
                 Text {
                     width: parent.width
@@ -118,9 +133,10 @@ BarWidget {
                 Column {
                     visible: root.tabIndex === 0
                     width: parent.width
-                    spacing: Style.space(8)
+                    spacing: Style.space(6)
 
                     Flow {
+                        id: periodControls
                         width: parent.width
                         spacing: Style.space(4)
                         Repeater {
@@ -129,84 +145,92 @@ BarWidget {
                             Button {
                                 required property string modelData
                                 required property int index
-                                width: Math.max(Style.space(90), (parent.width - parent.spacing * 2) / 3)
+                                width: Math.max(Style.space(90), (periodControls.width - periodControls.spacing * 2) / 3)
                                 text: modelData
                                 fontSize: Style.font.caption
                                 horizontalPadding: Style.space(4)
+                                verticalPadding: Style.space(2)
                                 selected: root.periodIndex === index
                                 focusable: true
                                 Accessible.role: Accessible.RadioButton
                                 Accessible.name: modelData
                                 Accessible.checked: selected
-                                onClicked: { root.periodIndex = index; root.detailDate = "" }
+                                onClicked: root.periodIndex = index
                                 Keys.onLeftPressed: periods.itemAt((index + 2) % 3).forceActiveFocus()
                                 Keys.onRightPressed: periods.itemAt((index + 1) % 3).forceActiveFocus()
                             }
                         }
                     }
 
-                    Text {
+                    Row {
+                        id: activityHeader
                         width: parent.width
-                        text: root.selectedStats
-                            ? root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) + " (UTC)"
-                            : "Period activity is unavailable until a complete refresh succeeds."
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.bodySmall
+                        spacing: Style.space(4)
+                        Text {
+                            width: parent.width - calendarInfo.width - parent.spacing
+                                - (activityStale.visible ? activityStale.width + parent.spacing : 0)
+                            text: "Activity" + (root.selectedStats ? " · " + root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) : " unavailable")
+                            color: Commons.Color.foreground
+                            font.family: Style.font.family
+                            font.pixelSize: Style.font.bodySmall
+                            font.bold: true
+                            wrapMode: Text.Wrap
+                        }
+                        InfoText {
+                            id: activityStale
+                            objectName: "stats-stale"
+                            visible: root.service !== null && root.service.stale
+                            text: "stale"
+                            tooltipText: "Activity updated: " + (root.service ? root.sectionFreshness({ lastSuccess: root.service.lastSuccess, stale: root.service.stale }) : "not loaded")
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(activityStale)
+                        }
+                        InfoText {
+                            id: calendarInfo
+                            objectName: "calendar-info"
+                            width: Style.space(28)
+                            text: ""
+                            horizontalAlignment: Text.AlignHCenter
+                            tooltipText: root.calendarExplanation
+                            Accessible.name: "About contribution dates"
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(calendarInfo)
+                        }
                     }
 
                     Heatmap {
+                        id: chart
                         width: parent.width
                         periodStats: root.selectedStats
                         period: root.period
-                        onDaySelected: function(date) { root.detailDate = date }
                         onTileFocused: function(tile) { root.revealPopupItem(tile) }
                     }
 
-                    Text {
-                        objectName: "contribution-details"
+                    Grid {
+                        id: metricsGrid
                         width: parent.width
-                        visible: root.selectedStats !== null
-                        text: root.detailDay ? root.detailDay.date + ": " + root.detailDay.contributionCount + " contributions (UTC)"
-                            : "Hover or focus a tile for its full date and count."
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.bodySmall
-                        Accessible.role: Accessible.StaticText
-                        Accessible.name: text
-                    }
-
-                    Text {
-                        visible: root.selectedStats !== null
-                        width: parent.width
-                        text: "Today (UTC) is incomplete. Counts are contributions, including activity beyond commits."
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.bodySmall
-                    }
-
-                    Repeater {
-                        model: root.selectedStats ? [
-                            "Contributions: " + root.selectedStats.contributions,
-                            "Commit contributions: " + root.selectedStats.commitContributions,
-                            "PRs authored: " + root.selectedStats.prsAuthored,
-                            "Issues authored: " + root.selectedStats.issuesAuthored
-                        ] : []
-                        Text {
-                            required property string modelData
-                            width: parent.width
-                            text: modelData
-                            wrapMode: Text.Wrap
-                            color: Commons.Color.foreground
-                            font.family: Style.font.family
-                            font.pixelSize: Style.font.body
-                            Accessible.role: Accessible.StaticText
-                            Accessible.name: text
+                        columns: 2
+                        columnSpacing: Style.space(12)
+                        rowSpacing: Style.space(4)
+                        Repeater {
+                            model: root.selectedStats ? [
+                                { label: "Contributions", accessibleLabel: "Contributions", value: root.selectedStats.contributions, meaning: "Activities GitHub counts in the selected period’s contribution calendar, including more than commits." },
+                                { label: "Commits", accessibleLabel: "Commit contributions", value: root.selectedStats.commitContributions, meaning: "Commit contributions GitHub counts in the selected period, subject to eligibility and visibility rules." },
+                                { label: "PRs", accessibleLabel: "PRs authored", value: root.selectedStats.prsAuthored, meaning: "PRs authored by you in the selected period, whether open or closed." },
+                                { label: "Issues", accessibleLabel: "Issues authored", value: root.selectedStats.issuesAuthored, meaning: "Issues authored by you in the selected period, whether open or closed." }
+                            ] : []
+                            InfoText {
+                                id: metric
+                                required property var modelData
+                                objectName: "metric-" + modelData.label
+                                width: (metricsGrid.width - metricsGrid.columnSpacing) / 2
+                                text: modelData.label + ": " + modelData.value
+                                font.pixelSize: Style.font.body
+                                tooltipText: modelData.meaning
+                                Accessible.name: modelData.accessibleLabel + ": " + modelData.value
+                                onActiveFocusChanged: if (activeFocus) root.revealPopupItem(metric)
+                            }
                         }
                     }
+
                 }
 
                 WorkList {
@@ -231,48 +255,60 @@ BarWidget {
                     onLinkFocused: function(link) { root.revealPopupItem(link) }
                 }
 
+                PanelSeparator { visible: root.tabIndex === 0 }
+
                 Column {
                     visible: root.tabIndex === 0
                     width: parent.width
-                    spacing: Style.space(8)
-                    Text {
+                    spacing: Style.space(4)
+                    Row {
+                        id: repositoryHeader
                         width: parent.width
-                        text: "Current repository snapshots · all periods"
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.body
+                        spacing: Style.space(6)
+                        InfoText {
+                            id: repositoryInfo
+                            width: parent.width - stars.width - parent.spacing
+                                - (repositoryStale.visible ? repositoryStale.width + parent.spacing : 0)
+                            text: "Repositories · current"
+                            font.bold: true
+                            tooltipText: root.repositoryExplanation
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(repositoryInfo)
+                        }
+                        InfoText {
+                            id: repositoryStale
+                            objectName: "repositories-stale"
+                            visible: root.repositoryState !== null && root.repositoryState.stale
+                            text: "stale"
+                            tooltipText: "Repositories updated: " + root.sectionFreshness(root.repositoryState)
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(repositoryStale)
+                        }
+                        InfoText {
+                            id: stars
+                            objectName: "repository-stars"
+                            text: " " + (root.repositorySnapshot ? root.repositorySnapshot.stars : "—") + " stars"
+                            tooltipText: "Current stars received across the repository scope; not stars gained during the selected period. " + root.repositoryExplanation
+                            Accessible.name: root.repositorySnapshot ? "Stars: " + root.repositorySnapshot.stars : "Stars unavailable"
+                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(stars)
+                        }
                     }
-                    Text {
+                    Grid {
+                        id: languageGrid
                         width: parent.width
-                        text: root.repositorySnapshot ? "Stars: " + root.repositorySnapshot.stars : "Stars: —"
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.body
-                        Accessible.role: Accessible.StaticText
-                        Accessible.name: text
-                    }
-                    Text {
-                        width: parent.width
-                        text: "Repository languages (code bytes)"
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.body
-                    }
-                    Repeater {
-                        model: root.repositorySnapshot ? root.repositorySnapshot.languages : []
-                        Text {
-                            required property var modelData
-                            width: parent.width
-                            text: modelData.name + ": " + modelData.percentage.toFixed(1) + "% · " + modelData.bytes + " bytes"
-                            textFormat: Text.PlainText
-                            wrapMode: Text.Wrap
-                            color: Commons.Color.foreground
-                            font.family: Style.font.family
-                            font.pixelSize: Style.font.bodySmall
-                            Accessible.role: Accessible.StaticText
-                            Accessible.name: text
+                        columns: 2
+                        columnSpacing: Style.space(12)
+                        rowSpacing: Style.space(4)
+                        Repeater {
+                            model: root.repositorySnapshot ? root.repositorySnapshot.languages : []
+                            InfoText {
+                                id: language
+                                required property var modelData
+                                objectName: "language-" + modelData.name
+                                width: (languageGrid.width - languageGrid.columnSpacing) / 2
+                                text: modelData.name + ": " + modelData.percentage.toFixed(1) + "%"
+                                tooltipText: modelData.bytes + " GitHub-reported language bytes across the repository scope. Shares describe repository contents, not coding time or period activity."
+                                Accessible.name: text + " repository language share"
+                                onActiveFocusChanged: if (activeFocus) root.revealPopupItem(language)
+                            }
                         }
                     }
                     Text {
@@ -280,33 +316,20 @@ BarWidget {
                         width: parent.width
                         text: root.repositorySnapshot ? "No repository language bytes reported."
                             : root.repositoryState && root.repositoryState.errorKind ? "Repository snapshots unavailable. See refresh status below."
-                            : root.service && root.service.refreshing ? "Loading complete repository snapshots…" : "Repository snapshots have not loaded yet."
+                            : root.service && root.service.refreshing ? "Loading repository snapshots…" : "Repository snapshots have not loaded yet."
                         wrapMode: Text.Wrap
                         color: Commons.Color.foreground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.bodySmall
                     }
-                    Text {
-                        width: parent.width
-                        text: "Personally owned public and accessible private repositories, excluding forks; includes archived repositories. Language shares describe repository contents."
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.bodySmall
-                    }
-                    Text {
-                        visible: root.repositoryState && root.repositoryState.lastSuccess > 0
-                        width: parent.width
-                        text: root.repositoryState ? "Repository snapshot updated: " + new Date(root.repositoryState.lastSuccess).toLocaleString()
-                            + (root.repositoryState.stale ? " · stale" : "") : ""
-                        wrapMode: Text.Wrap
-                        color: Commons.Color.foreground
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.caption
-                    }
+
                 }
 
+                PanelSeparator {}
+
                 Text {
+                    objectName: "refresh-status"
+                    visible: root.statusNeedsAttention
                     width: parent.width
                     text: root.service ? root.service.statusText : "Waiting for the shared GitHub service."
                     textFormat: Text.PlainText
@@ -316,25 +339,38 @@ BarWidget {
                     font.pixelSize: Style.font.bodySmall
                 }
 
-                Text {
+                Row {
                     width: parent.width
-                    text: root.service && root.service.lastSuccess > 0
-                        ? "Last successful update: " + new Date(root.service.lastSuccess).toLocaleString() + (root.service.stale ? " · stale" : "")
-                        : "No successful update yet."
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                    color: Commons.Color.foreground
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                }
-
-                Button {
-                    text: root.service && root.service.refreshing ? "Refreshing…" : "Refresh"
-                    focusable: true
-                    enabled: root.service !== null && !root.service.refreshing && root.service.retryAt <= root.service.now
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Refresh GitHub contributions"
-                    onClicked: root.service.refresh()
+                    spacing: Style.space(8)
+                    InfoText {
+                        id: freshness
+                        objectName: "refresh-freshness"
+                        width: parent.width - refreshButton.width - parent.spacing
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.service && root.service.lastSuccess > 0
+                            ? "Updated " + new Date(root.service.lastSuccess).toLocaleString(Qt.locale(), Locale.ShortFormat) : "No successful update yet."
+                        font.pixelSize: Style.font.caption
+                        tooltipText: root.service ? [
+                            "Activity: " + root.sectionFreshness({ lastSuccess: root.service.lastSuccess, stale: root.service.stale }),
+                            "Repositories: " + root.sectionFreshness(root.service.repositories),
+                            "PRs: " + root.sectionFreshness(root.service.prs),
+                            "Issues: " + root.sectionFreshness(root.service.issues)
+                        ].join("\n") : "Waiting for the shared GitHub service."
+                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(freshness)
+                    }
+                    Button {
+                        id: refreshButton
+                        objectName: "refresh-button"
+                        iconText: ""
+                        iconSpinning: root.service !== null && root.service.refreshing
+                        tooltipText: root.service && root.service.refreshing ? "Refreshing GitHub activity" : "Refresh GitHub activity"
+                        focusable: true
+                        enabled: root.service !== null && !root.service.refreshing && root.service.retryAt <= root.service.now
+                        Accessible.role: Accessible.Button
+                        Accessible.name: tooltipText
+                        onClicked: root.service.refresh()
+                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(refreshButton)
+                    }
                 }
             }
         }

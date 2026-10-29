@@ -15,6 +15,9 @@ Item {
     readonly property real tileWidth: annual ? Style.space(22) : Math.max(Style.space(32), (width - gap * 6) / 7)
     readonly property real tileHeight: annual ? tileWidth : Style.space(period === "week" ? 82 : 58)
     readonly property real headerHeight: Style.space(annual ? 34 : period === "month" ? 20 : 0)
+    readonly property real contentWidth: viewport.contentWidth
+    property bool browsed: false
+    property bool initialPositionPending: true
     property alias contentX: viewport.contentX
     signal daySelected(string date)
     signal tileFocused(Item tile)
@@ -30,6 +33,7 @@ Item {
     }
 
     function reveal(tile) {
+        browsed = true
         var left = grid.x + tile.x
         var right = left + tile.width
         if (left < viewport.contentX) viewport.contentX = left
@@ -38,7 +42,24 @@ Item {
         root.tileFocused(tile)
     }
 
-    onPeriodChanged: viewport.contentX = 0
+    // Enter at newest dates and follow initial sizing until the user browses.
+    // Replacing a snapshot alone never resets the viewport.
+    function settleInitialPosition() {
+        if (!initialPositionPending || !layout || width <= 0) return
+        viewport.contentX = annual ? Math.max(0, viewport.contentWidth - viewport.width) : 0
+        initialPositionPending = false
+    }
+    onPeriodChanged: {
+        browsed = false
+        initialPositionPending = true
+        Qt.callLater(settleInitialPosition)
+    }
+    onLayoutChanged: Qt.callLater(settleInitialPosition)
+    onWidthChanged: {
+        if (!browsed) initialPositionPending = true
+        Qt.callLater(settleInitialPosition)
+    }
+    Component.onCompleted: Qt.callLater(settleInitialPosition)
 
     Flickable {
         id: viewport
@@ -48,7 +69,9 @@ Item {
         contentHeight: height
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
+        onMovementStarted: root.browsed = true
         Controls.ScrollBar.horizontal: Controls.ScrollBar {
+            onActiveChanged: if (active) root.browsed = true
             policy: viewport.contentWidth > viewport.width ? Controls.ScrollBar.AlwaysOn : Controls.ScrollBar.AlwaysOff
         }
 
@@ -56,6 +79,11 @@ Item {
             model: root.annual && root.layout ? root.layout.months : []
             Text {
                 required property var modelData
+                required property int index
+                objectName: "calendar-month-label"
+                readonly property real nextColumn: index + 1 < root.layout.months.length ? root.layout.months[index + 1].column : root.layout.columns
+                readonly property real slotWidth: (nextColumn - modelData.column) * (root.tileWidth + root.gap) - root.gap
+                visible: implicitWidth <= slotWidth
                 x: root.labelWidth + modelData.column * (root.tileWidth + root.gap)
                 text: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(modelData.date.slice(5)) - 1]
                     + "\n" + modelData.date.slice(0, 4)
@@ -102,7 +130,7 @@ Item {
                     activeFocusOnTab: modelData !== null
                     Accessible.ignored: modelData === null
                     Accessible.role: Accessible.StaticText
-                    Accessible.name: modelData ? modelData.date + ": " + modelData.contributionCount + " contributions (UTC)" : ""
+                    Accessible.name: modelData ? modelData.date + ": " + modelData.contributionCount + " contributions" : ""
                     onActiveFocusChanged: if (activeFocus && modelData) {
                         root.daySelected(modelData.date)
                         root.reveal(tile)
@@ -139,19 +167,20 @@ Item {
                         visible: tile.modelData !== null
                         width: parent.width
                         height: root.annual ? parent.height : Style.space(28)
-                        radius: Style.space(3)
+                        radius: Style.space(root.annual ? 2 : 3)
                         color: tile.level === 0 ? Qt.rgba(Commons.Color.foreground.r, Commons.Color.foreground.g, Commons.Color.foreground.b, 0.1)
                             : Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.2 + tile.level * 0.2)
                         border.width: tile.activeFocus ? 2 : 0
                         border.color: Commons.Color.foreground
                     }
                     Text {
+                        objectName: "short-date-label"
                         visible: tile.modelData !== null && !root.annual
                         y: Style.space(32)
                         width: parent.width
                         text: !tile.modelData ? "" : (root.period === "week"
                             ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(tile.modelData.date + "T00:00:00Z").getUTCDay()] + "\n" : "")
-                            + tile.modelData.date.slice(8) + "\n" + tile.modelData.contributionCount
+                            + tile.modelData.date.slice(8)
                         horizontalAlignment: Text.AlignHCenter
                         color: Commons.Color.foreground
                         font.family: Style.font.family

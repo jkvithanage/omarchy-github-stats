@@ -16,6 +16,18 @@ Item {
         name: "HeatmapKeyboard"
         when: windowShown
 
+        function init() {
+            chart.width = 220
+            chart.periodStats = null
+            chart.initialPositionPending = true
+        }
+
+        function namedChildren(item, name) {
+            var result = item.objectName === name ? [item] : []
+            for (var i = 0; i < item.children.length; i++) result = result.concat(namedChildren(item.children[i], name))
+            return result
+        }
+
         function showPeriod(period, from, count) {
             var days = []
             for (var i = 0; i < count; i++) days.push({
@@ -25,6 +37,65 @@ Item {
             chart.period = period
             chart.periodStats = { layout: Model.calendarLayout(days, period) }
             wait(0)
+        }
+
+        function test_short_labels_and_details() {
+            var periods = ["week", "month"]
+            for (var i = 0; i < periods.length; i++) {
+                showPeriod(periods[i], "2026-10-01", i === 0 ? 7 : 30)
+                var tile = findChild(chart, "contribution-2026-10-01")
+                var label = findChild(tile, "short-date-label")
+                compare(label.text, i === 0 ? "Thu\n01" : "01")
+                compare(tile.Accessible.name, "2026-10-01: 0 contributions")
+                var tooltip = findChild(tile, "contribution-tooltip")
+                mouseMove(tile, 5, 5)
+                tryCompare(tooltip, "visible", true)
+                mouseMove(chart, chart.width - 2, chart.height - 2)
+                tile.forceActiveFocus()
+                tryCompare(tooltip, "visible", true)
+                compare(tooltip.text, tile.Accessible.name)
+            }
+        }
+
+        function test_original_short_view_sizes_keep_dates_below_tiles() {
+            chart.width = 338
+            showPeriod("week", "2026-10-19", 7)
+            compare(chart.tileHeight, 82)
+            var weeklyLabel = findChild(findChild(chart, "contribution-2026-10-19"), "short-date-label")
+            verify(weeklyLabel.y >= 28)
+            showPeriod("month", "2026-08-29", 30)
+            compare(chart.layout.rows, 6)
+            compare(chart.tileHeight, 58)
+            var first = findChild(chart, "contribution-2026-08-29")
+            var label = findChild(first, "short-date-label")
+            verify(label.visible && label.y >= 28 && label.y + label.height <= first.height)
+            compare(label.text, "29")
+            first.forceActiveFocus()
+            tryCompare(findChild(first, "contribution-tooltip"), "visible", true)
+            compare(first.Accessible.name, "2026-08-29: 0 contributions")
+        }
+
+        function test_annual_fit_overflow_refresh_and_period_entry() {
+            showPeriod("year", "2025-10-26", 365)
+            compare(chart.tileWidth, 22)
+            compare(chart.gap, 4)
+            compare(chart.contentX, chart.contentWidth - chart.width)
+            chart.contentX = 96
+            // A refresh replaces delegates but keeps manual browsing at the same dates.
+            showPeriod("year", "2025-10-26", 365)
+            compare(chart.contentX, 96)
+            chart.width = chart.contentWidth
+            wait(0)
+            compare(chart.contentX, 0)
+            var labels = namedChildren(chart, "calendar-month-label").filter(function(label) { return label.visible })
+            verify(labels.length >= 11)
+            for (var i = 1; i < labels.length; i++)
+                verify(labels[i - 1].x + labels[i - 1].width <= labels[i].x, "Month labels overlap")
+            chart.width = 220
+            showPeriod("week", "2026-10-19", 7)
+            compare(chart.contentX, 0)
+            showPeriod("year", "2025-10-26", 365)
+            compare(chart.contentX, chart.contentWidth - chart.width)
         }
 
         function test_week_and_month_navigation() {
@@ -56,7 +127,7 @@ Item {
             var tooltip = findChild(findChild(chart, "contribution-2026-10-17"), "contribution-tooltip")
             verify(tooltip !== null, 'Focused tiles need details outside the clipped chart')
             tryCompare(tooltip, "visible", true)
-            compare(tooltip.text, "2026-10-17: 0 contributions (UTC)")
+            compare(tooltip.text, "2026-10-17: 0 contributions")
             verify(tooltip.width <= chart.width)
         }
     }
