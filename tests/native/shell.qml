@@ -329,6 +329,19 @@ ShellRoot {
                 if (!textItem(linkProbe, "Authored · 2 of 42 shown") || !namedItem(linkProbe, "work-stale").visible
                     || !namedItem(linkProbe, "work-row-separator").visible)
                     throw new Error("Truncated preview total or independent work stale state missing")
+                var workStatus = namedItem(linkProbe, "work-stale")
+                if (workStatus.text !== "Showing saved PRs · refresh failed."
+                    || workStatus.tooltipText.indexOf(new Date(linkProbe.section.lastSuccess).toLocaleString()) < 0)
+                    throw new Error("Saved-work failure message or original timestamp missing")
+                linkProbe.refreshing = true
+                if (workStatus.text !== "Refreshing PRs · showing saved data…")
+                    throw new Error("Refreshing cached work is indistinguishable from initial loading")
+                var savedWorkSection = linkProbe.section
+                linkProbe.section = null
+                if (workStatus.text !== "Loading PRs…" || workStatus.tooltipText !== "No successful update yet.")
+                    throw new Error("Initial loading is presented as saved or successful data")
+                linkProbe.section = savedWorkSection
+                linkProbe.refreshing = Qt.binding(function() { return service.refreshing })
                 if (root.capture(popup.contentItem[0], "month")) return
                 if (root.capture(popup.contentItem[0].parent.parent, "month-card")) return
                 if (first.periodIndex !== 1 || first.selectedStats.days.length !== 30)
