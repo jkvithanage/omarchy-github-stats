@@ -2,6 +2,12 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Stats hierarchy — 2026-10-29 (#22)
+
+Stats leads with a native display-size contribution total and explicit selected-period date heading. Supporting metrics retain precise accessible explanations; the duplicate contribution metric is removed, and the current Repository heading is quieter. The native regression first failed because no primary total existed. Added assertions distinguish successful zero, missing data and initial loading, and check the period association in every Stats view. Existing worst-case six-row month, six language shares, independent stale states, theme changes, native caps and original heatmap-size checks remain in place. Physical screen-reader and screen-edge verification limits are unchanged.
+
+`make check` and all six `make smoke` modes pass. The native fixture now lets focus-grab close/reopen events settle on separate ticks instead of toggling several times in one event. Fixture renders in `/tmp/stats-22-captures` were inspected, including the six-row month, all six language shares and stale guidance. Existing dynamic host/theme lint warnings remain.
+
 ## Calendar keyboard entry — 2026-10-29 (#21)
 
 Heatmaps expose one sequential Tab stop, enter at the latest available date for a new period, and retain the browsed date on re-entry and refresh. Arrow keys skip padding and reveal focused dates; removing the remembered date falls back to the latest covered date. An empty chart adds no stop. The initial regression failed when Tab entered the first date rather than the latest. Focused QML coverage exercises forward/backward entry and exit for all periods, refresh replacement, rollover and boundaries. Native tests retain original sizing, constrained scrolling, annual browsing, tooltips and Escape checks. Physical keyboard and screen-reader observation limits remain unchanged.

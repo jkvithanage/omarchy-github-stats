@@ -147,6 +147,11 @@ ShellRoot {
 
     function assertAdaptivePopup(popup) {
         var scroll = popup.contentItem[0]
+        if (first.tabIndex === 0) {
+            var primary = namedItem(scroll, "contribution-total")
+            if (!primary || primary.Accessible.name.indexOf(["7 days", "30 days", "12 months"][first.periodIndex]) < 0)
+                throw new Error("Primary contribution total lost its selected-period association")
+        }
         if (root.regularWidth > 0 && popup.contentWidth !== root.regularWidth)
             throw new Error("The annual view widened the popup")
         if (scroll.availableHeight - scroll.contentHeight > 1)
@@ -236,7 +241,9 @@ ShellRoot {
                 if (root.mode === "stale" && (!namedItem(refreshedContent, "stats-stale").visible
                     || !namedItem(refreshedContent, "repositories-stale").visible
                     || !namedItem(refreshedContent, "refresh-status").visible))
-                    throw new Error("Section-specific stale states or failure guidance missing")
+                    throw new Error("Section-specific stale states or failure guidance missing: "
+                        + first.popupOpen + "/tab=" + first.tabIndex + "/stats=" + namedItem(refreshedContent, "stats-stale").visible
+                        + "/repos=" + namedItem(refreshedContent, "repositories-stale").visible + "/status=" + namedItem(refreshedContent, "refresh-status").visible)
                 if (root.mode === "success" && namedItem(refreshedContent, "refresh-status").visible)
                     throw new Error("Healthy footer retained redundant status")
                 root.showLargestStatsFixture()
@@ -264,6 +271,28 @@ ShellRoot {
             }
             if (root.stage === 3) {
                 var scrollContent = popup.contentItem[0]
+                var contributionTotal = namedItem(scrollContent, "contribution-total")
+                if (!contributionTotal || contributionTotal.text !== "8 contributions"
+                    || contributionTotal.Accessible.name.indexOf("7 days") < 0
+                    || contributionTotal.font.pixelSize <= namedItem(scrollContent, "metric-Commits").font.pixelSize
+                    || namedItem(scrollContent, "metric-Contributions"))
+                    throw new Error("Selected-period contributions lack a distinct primary metric")
+                var originalStats = service.model.stats
+                var zeroStats = JSON.parse(JSON.stringify(originalStats))
+                zeroStats.periods.week.contributions = 0
+                service.model.stats = zeroStats
+                service.modelChanged()
+                if (contributionTotal.text !== "0 contributions") throw new Error("Successful zero contribution total is unavailable")
+                service.model.stats = null
+                service.modelChanged()
+                if (contributionTotal.text !== "Contributions unavailable") throw new Error("Missing contribution data is shown as zero")
+                var originalActive = service.model.active
+                service.model.active = {}
+                service.modelChanged()
+                if (contributionTotal.text !== "Loading contributions…") throw new Error("Initial contributions are not labeled loading")
+                service.model.active = originalActive
+                service.model.stats = originalStats
+                service.modelChanged()
                 root.assertAdaptivePopup(popup)
                 if (root.capture(barContent, "bar") || root.capture(scrollContent, "week")) return
                 root.regularWidth = popup.contentWidth
@@ -275,7 +304,7 @@ ShellRoot {
                 bar.vertical = true
                 if (trigger.implicitWidth !== bar.barSize) throw new Error("Native vertical bar width mismatch")
                 bar.vertical = false
-                if (!textItem(scrollContent, "7 days") || !textItem(scrollContent, "Contributions: 8")
+                if (!textItem(scrollContent, "7 days") || !textItem(scrollContent, "8 contributions")
                     || !textItem(scrollContent, "Commits: 3") || !textItem(scrollContent, "PRs: 2")
                     || !textItem(scrollContent, "Issues: 1")
                     || namedItem(scrollContent, "metric-Commits").Accessible.name.indexOf("Commit contributions") < 0
@@ -475,34 +504,53 @@ ShellRoot {
                 root.stage = 7
                 return
             }
-            if (first.popupOpen) throw new Error("Escape dismissal failed")
-            root.constrainPopup = false
-            first.toggle()
-            if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
-            // Native owner callback is also used by outside-click dismissal.
-            popup.close()
-            if (first.popupOpen) throw new Error("Native dismissal callback failed")
-            first.toggle()
-            if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Reopen did not reset Stats and seven days")
+            if (root.stage === 7) {
+                if (first.popupOpen) throw new Error("Escape dismissal failed")
+                root.constrainPopup = false
+                first.toggle()
+                if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Keyboard reopen did not reset Stats")
+                root.stage = 70
+                return
+            }
+            if (root.stage === 70) {
+                // Let native focus-grab changes settle between close/reopen events.
+                popup.close()
+                if (first.popupOpen) throw new Error("Native dismissal callback failed")
+                root.stage = 71
+                return
+            }
+            if (root.stage === 71) {
+                first.toggle()
+                root.stage = 72
+                return
+            }
+            if (root.stage === 72) {
+                if (first.periodIndex !== 0 || first.tabIndex !== 0) throw new Error("Reopen did not reset Stats and seven days")
+                var weeklyChart = namedItem(popup.contentItem[0], "contribution-chart")
+                namedItem(weeklyChart, "contribution-" + service.stats.periods.week.days[0].date).forceActiveFocus()
+                first.close()
+                root.stage = 73
+                return
+            }
+            if (root.stage === 73) {
+                first.toggle()
+                root.stage = 74
+                return
+            }
             var reopenedChart = namedItem(popup.contentItem[0], "contribution-chart")
-            namedItem(reopenedChart, "contribution-" + service.stats.periods.week.days[0].date).forceActiveFocus()
-            first.close()
-            first.toggle()
+            if (reopenedChart.entryDate !== service.stats.periods.week.days[6].date)
+                throw new Error("New popup session retained an older weekly keyboard entry")
             root.beforeManualRefresh = { stats: service.lastSuccess, repositories: service.repositories.lastSuccess,
                 prs: service.prs.lastSuccess, issues: service.issues.lastSuccess }
             root.stage = 8
             root.settledState = null
+            first.periodIndex = 2
             Qt.callLater(function() {
-                if (reopenedChart.entryDate !== service.stats.periods.week.days[6].date)
-                    throw new Error("New popup session retained an older weekly keyboard entry")
-                first.periodIndex = 2
-                Qt.callLater(function() {
-                    var browsing = namedItem(popup.contentItem[0], "contribution-chart")
-                    browsing.contentX = 96
-                    root.annualBrowseX = browsing.contentX
-                    namedItem(popup.contentItem[0], "refresh-button").clicked()
-                    if (!service.refreshing) throw new Error("Manual Refresh did not start")
-                })
+                var browsing = namedItem(popup.contentItem[0], "contribution-chart")
+                browsing.contentX = 96
+                root.annualBrowseX = browsing.contentX
+                namedItem(popup.contentItem[0], "refresh-button").clicked()
+                if (!service.refreshing) throw new Error("Manual Refresh did not start")
             })
         } catch (error) {
             console.error("Native smoke failed: " + error.message)

@@ -10,6 +10,8 @@ V1 features and verification documentation are complete. See the [verification r
 
 Keyboard users enter a contribution heatmap with Tab, browse dates with arrow keys, and leave with Tab or Shift+Tab. A new period starts at the latest available date; re-entry remembers the focused date, and refreshes preserve it while it remains in the period. Padding is skipped and focused dates scroll into view.
 - **Current repository snapshots:** Stars and the top five Repository languages plus Other, from complete repository/language pagination. The scope is personally owned public and accessible private repositories, excluding forks and including archives. Language shares describe repository code bytes, independently of the Stats period.
+
+Stats leads with the selected-period contribution total, followed by its date range and heatmap. Commit contributions, authored PRs and authored issues remain supporting metrics; current Repository snapshots are visually secondary and independent of that period.
 - **Open work:** authored PRs, pending direct/team review requests from other authors, authored issues, and assignments from other authors. Each category has API totals, up to ten recently updated rows, role/private/draft labels where relevant, linked titles and View all browser links. Update times use relative labels for the last week and short local dates for older work; hover or focus the update label for the exact local timestamp. Bounded overlap lookups provide secondary-role badges on authored previews without adding to totals.
 
 ## Requirements
