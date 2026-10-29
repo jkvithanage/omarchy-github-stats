@@ -31,10 +31,10 @@ function calendar(identity = alice, days, now = instant) {
         if (index >= 0) returned[index] = day;
         else returned.push(day);
     }
-    const totals = { totalCommitContributions: 3, totalPullRequestContributions: 2, totalIssueContributions: 1 };
+    const totals = { totalCommitContributions: 3, totalPullRequestContributions: 2, totalIssueContributions: 1, restrictedContributionsCount: 0 };
     return response({ viewer: identity, user: { ...identity, contributionsCollection: {
         ...totals, contributionCalendar: { weeks: [{ contributionDays: returned }] }
-    }, week: totals, month: { totalCommitContributions: 13, totalPullRequestContributions: 12, totalIssueContributions: 11 } } });
+    }, week: totals, month: { totalCommitContributions: 13, totalPullRequestContributions: 12, totalIssueContributions: 11, restrictedContributionsCount: 0 } } });
 }
 function load(service, now = instant, identity = alice, days) {
     const identityRequest = service.refresh(now);
@@ -54,8 +54,24 @@ test('Stats refresh requests all period summaries with one UTC end instant', () 
     const query = next.command.find(arg => arg.startsWith('query='));
     assert.match(query, /week: contributionsCollection\(from: \$weekFrom, to: \$to\)/);
     assert.match(query, /month: contributionsCollection\(from: \$monthFrom, to: \$to\)/);
-    for (const field of ['totalCommitContributions', 'totalPullRequestContributions', 'totalIssueContributions']) {
+    for (const field of ['totalCommitContributions', 'totalPullRequestContributions', 'totalIssueContributions', 'restrictedContributionsCount']) {
         assert.equal(query.split(field).length - 1, 3, field);
+    }
+});
+
+test('Stats preserves restricted activity for each period alongside visible category counts', () => {
+    const service = new model.Service(instant);
+    const first = service.refresh(instant);
+    const request = service.complete(first.id, response({ viewer: alice }), instant);
+    const { data } = JSON.parse(calendar().stdout);
+    for (const [key, restricted, commits, prs, issues] of [
+        ['week', 130, 0, 0, 0], ['month', 376, 0, 0, 0], ['contributionsCollection', 549, 40, 11, 11]
+    ]) Object.assign(data.user[key], { restrictedContributionsCount: restricted,
+        totalCommitContributions: commits, totalPullRequestContributions: prs, totalIssueContributions: issues });
+    service.complete(request.id, response(data), instant);
+    for (const [period, restricted, commits] of [['week', 130, 0], ['month', 376, 0], ['year', 549, 40]]) {
+        assert.equal(service.stats.periods[period].restrictedContributions, restricted, period);
+        assert.equal(service.stats.periods[period].commitContributions, commits, period);
     }
 });
 
@@ -123,6 +139,9 @@ test('incomplete Stats responses retain the entire last snapshot and original fr
         data => { data.user.month.totalCommitContributions = null; },
         data => { data.user.contributionsCollection.totalIssueContributions = -1; },
         data => { data.user.week.totalPullRequestContributions = '0'; },
+        data => { delete data.user.week.restrictedContributionsCount; },
+        data => { data.user.month.restrictedContributionsCount = -1; },
+        data => { data.user.contributionsCollection.restrictedContributionsCount = '0'; },
         data => { data.user.contributionsCollection.contributionCalendar.weeks[0].contributionDays.pop(); },
         data => { data.user.contributionsCollection.contributionCalendar.weeks[0].contributionDays.splice(5, 1); }
     ];

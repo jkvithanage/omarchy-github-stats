@@ -17,11 +17,11 @@ TestCase {
             date: new Date(now - offset * 86400000).toISOString().slice(0, 10),
             contributionCount: 0, contributionLevel: "NONE"
         })
-        var totals = { totalCommitContributions: 0, totalPullRequestContributions: 0, totalIssueContributions: 0 }
+        var totals = { totalCommitContributions: 0, totalPullRequestContributions: 0, totalIssueContributions: 0, restrictedContributionsCount: 0 }
         service.complete(next.id, { code: 0, stdout: JSON.stringify({ data: {
             viewer: identity, user: { id: identity.id, login: identity.login,
                 week: totals, month: totals, contributionsCollection: {
-                    totalCommitContributions: 0, totalPullRequestContributions: 0, totalIssueContributions: 0,
+                    totalCommitContributions: 0, totalPullRequestContributions: 0, totalIssueContributions: 0, restrictedContributionsCount: 0,
                     contributionCalendar: { weeks: [{ contributionDays: days }] }
                 } }
         } }) }, now)

@@ -319,6 +319,34 @@ ShellRoot {
                 if (contributionTotal.text !== "Loading contributions…") throw new Error("Initial contributions are not labeled loading")
                 service.model.active = originalActive
                 service.model.stats = originalStats
+                var restrictedStats = JSON.parse(JSON.stringify(originalStats))
+                var serialBeforePeriods = service.model.serial
+                for (var periodIndex = 0; periodIndex < 3; periodIndex++) {
+                    var periodKey = ["week", "month", "year"][periodIndex]
+                    var restrictedCount = [130, 376, 549][periodIndex]
+                    restrictedStats.periods[periodKey].restrictedContributions = restrictedCount
+                    restrictedStats.periods[periodKey].commitContributions = periodIndex === 2 ? 40 : 0
+                    service.model.stats = JSON.parse(JSON.stringify(restrictedStats))
+                    service.modelChanged()
+                    first.periodIndex = periodIndex
+                    var restrictedNotice = namedItem(scrollContent, "restricted-activity")
+                    var restrictedCommits = namedItem(scrollContent, "metric-Commits")
+                    if (!restrictedNotice.visible || restrictedNotice.text.indexOf(String(restrictedCount)) !== 0
+                        || restrictedNotice.tooltipText.indexOf("--scopes read:user") < 0
+                        || !restrictedNotice.activeFocusOnTab
+                        || restrictedCommits.text !== "Commits: " + (periodIndex === 2 ? "40+" : "0+")
+                        || restrictedCommits.Accessible.name.indexOf("at least ") < 0
+                        || namedItem(scrollContent, "metric-PRs").text.indexOf("+") < 0
+                        || namedItem(scrollContent, "metric-Issues").text.indexOf("+") < 0)
+                        throw new Error("Restricted activity is presented as complete in " + periodKey)
+                }
+                first.periodIndex = 0
+                service.model.stats = originalStats
+                service.modelChanged()
+                if (namedItem(scrollContent, "restricted-activity").visible
+                    || namedItem(scrollContent, "metric-Commits").text !== "Commits: 3"
+                    || service.model.serial !== serialBeforePeriods)
+                    throw new Error("Complete activity retained restricted labels or period switching fetched data")
                 var prTab = namedItem(scrollContent, "tab-PRs")
                 if (!prTab || prTab.Accessible.name.indexOf("2 open PRs") < 0)
                     throw new Error("PR tab is missing complete open-work totals")

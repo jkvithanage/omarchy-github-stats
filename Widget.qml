@@ -15,6 +15,7 @@ BarWidget {
     property int periodIndex: 0
     readonly property string period: ["week", "month", "year"][periodIndex]
     readonly property var selectedStats: service && service.stats ? service.stats.periods[period] : null
+    readonly property bool activityRestricted: selectedStats !== null && selectedStats.restrictedContributions > 0
     readonly property var repositoryState: service ? service.repositories : null
     readonly property var repositorySnapshot: repositoryState ? repositoryState.data : null
     readonly property string countText: service && service.todayCount !== null ? String(service.todayCount) : "—"
@@ -271,13 +272,24 @@ BarWidget {
                                 required property var modelData
                                 objectName: "metric-" + modelData.label
                                 width: (metricsGrid.width - metricsGrid.columnSpacing * 2) / 3
-                                text: modelData.label + ": " + modelData.value
+                                text: modelData.label + ": " + modelData.value + (root.activityRestricted ? "+" : "")
                                 font.pixelSize: Style.font.body
-                                tooltipText: modelData.meaning
-                                Accessible.name: modelData.accessibleLabel + ": " + modelData.value
+                                tooltipText: modelData.meaning + (root.activityRestricted ? " Visible activity only; restricted contributions are excluded. This is a lower bound." : "")
+                                Accessible.name: modelData.accessibleLabel + ": " + (root.activityRestricted ? "at least " : "") + modelData.value
                                 onActiveFocusChanged: if (activeFocus) root.revealPopupItem(metric)
                             }
                         }
+                    }
+
+                    InfoText {
+                        id: restrictedActivity
+                        objectName: "restricted-activity"
+                        width: parent.width
+                        visible: root.activityRestricted
+                        text: root.activityRestricted ? root.selectedStats.restrictedContributions
+                            + " private contributions have no breakdown. Counts marked + show visible activity only." : ""
+                        tooltipText: "To include accessible private/internal contribution details, authorize read:user with: gh auth refresh --hostname github.com --scopes read:user, then refresh the widget. GitHub may still restrict activity your account cannot access."
+                        onActiveFocusChanged: if (activeFocus) root.revealPopupItem(restrictedActivity)
                     }
 
                 }

@@ -40,7 +40,7 @@ if any("contributionsCollection" in arg for arg in args):
              "contributionCount": 8 if offset == 0 else 0,
              "contributionLevel": "SECOND_QUARTILE" if offset == 0 else "NONE"}
             for offset in range(369, -1, -1)]
-    totals = {"totalCommitContributions": 3, "totalPullRequestContributions": 2, "totalIssueContributions": 1}
+    totals = {"totalCommitContributions": 3, "totalPullRequestContributions": 2, "totalIssueContributions": 1, "restrictedContributionsCount": 0}
     data["user"] = dict(identity, contributionsCollection=dict(totals, contributionCalendar={
         "weeks": [{"contributionDays": days}]
     }), week=totals, month=totals)
