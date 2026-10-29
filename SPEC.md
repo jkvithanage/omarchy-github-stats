@@ -42,6 +42,8 @@ Each tile exposes its full date and contribution count on hover or keyboard focu
 
 Each populated heatmap has one sequential Tab stop. First entry for a selected period focuses today when available, otherwise the latest available date. Arrow keys follow the chart arrangement, skip padding and stop at boundaries; Tab/Shift+Tab leave the chart. Re-entry remembers the browsed date, including across refreshes while it remains available. Missing/empty charts add no Tab stop; rollover or removed coverage falls back to the latest available date.
 
+Mark today's incomplete UTC date with an underline below its colored tile, distinct from the keyboard-focus border, and identify it in accessible details. Include a compact Less-to-More legend using the same relative contribution levels and theme colors, without fixed-count threshold claims. Annual weekday labels occupy a stationary gutter outside the scrolling dates/month labels. Provide a keyboard-accessible Latest action beneath the annual chart that reveals newest dates without fetching data or moving focus.
+
 ### Activity summaries
 
 Lead Stats with a prominent selected-period contribution total above the chart and an explicit visible period/date association. Below the chart, show the supporting activity metrics, with precise accessible meanings:

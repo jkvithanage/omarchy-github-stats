@@ -2,6 +2,12 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Heatmap orientation — 2026-10-29 (#24)
+
+Today's UTC date has an underline below its intensity tile and accessible incomplete-day details. A shared color mapping drives tiles and the Less-to-More legend. Annual weekdays occupy a stationary gutter; Latest reveals newest dates without a request or focus change. The new QML regressions first failed for missing today/legend and fixed-weekday behavior. Tests exercise rollover, distinct focus/Today indicators, legend colors, fixed labels, newest-date navigation and preserved focus. Native tests verify Latest's focus and unchanged request serial while retaining original sizing, narrow caps, month labels and refresh/browsing behavior. Physical screen-reader and screen-edge limits remain unchanged.
+
+Integrated with #23, `make check` passes (23 service fixtures, 21 Qt cases, lint/manifest; existing host/theme warnings remain), and all six regular `make smoke` modes pass. Fixture renders in `/tmp/stats-24-captures` were inspected for the annual gutter, today underline, legend, Latest and stale guidance. Optional capture runs intermittently lose popup focus/visibility during asynchronous capture; they are not treated as completed verification runs. The regular non-capture native suite is the verification gate. The harness waits for native dismissal animations to finish before reopening; focused tiles retain their Tab flag until focus transfers, avoiding a transient Qt warning.
+
 ## Stats hierarchy — 2026-10-29 (#22)
 
 Stats leads with a native display-size contribution total and explicit selected-period date heading. Supporting metrics retain precise accessible explanations; the duplicate contribution metric is removed, and the current Repository heading is quieter. The native regression first failed because no primary total existed. Added assertions distinguish successful zero, missing data and initial loading, and check the period association in every Stats view. Existing worst-case six-row month, six language shares, independent stale states, theme changes, native caps and original heatmap-size checks remain in place. Physical screen-reader and screen-edge verification limits are unchanged.
