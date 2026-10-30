@@ -1,6 +1,6 @@
 # Omarchy GitHub Stats
 
-A native Omarchy bar plugin for personal GitHub contributions, pull requests, and issues. The bar shows a GitHub icon and today's UTC contribution count; its popup has **Stats**, **PRs**, and **Issues** tabs.
+A native Omarchy bar plugin for personal GitHub contributions, pull requests, and issues. The bar shows a GitHub icon and today's contribution count; its popup has **Stats**, **PRs**, and **Issues** tabs.
 
 ## Features and status
 
@@ -12,7 +12,7 @@ V1 features and verification documentation are complete. See the [verification r
 
 Keyboard users enter a contribution heatmap with Tab, browse dates with arrow keys, and leave with Tab or Shift+Tab. A new period starts at the latest available date; re-entry remembers the focused date, and refreshes preserve it while it remains in the period. Padding is skipped and focused dates scroll into view.
 
-A small underline marks today's incomplete UTC date, independently of the keyboard-focus border. The Less-to-More legend follows GitHub's relative contribution levels. Annual weekday labels remain fixed while dates scroll; **Latest** returns to the newest dates without fetching data or moving focus.
+A small underline marks today's incomplete local date, independently of the keyboard-focus border. The Less-to-More legend follows GitHub's relative contribution levels. Annual weekday labels remain fixed while dates scroll; **Latest** returns to the newest dates without fetching data or moving focus.
 - **Current repository snapshots:** Stars and the top five Repository languages plus Other, from complete repository/language pagination. The scope is personally owned public and accessible private repositories, excluding forks and including archives. Language shares describe repository code bytes, independently of the Stats period.
 
 Stats leads with the selected-period contribution total, followed by its date range and heatmap. Commit contributions, authored PRs and authored issues remain supporting metrics; current Repository snapshots are visually secondary and independent of that period.
@@ -53,7 +53,7 @@ For local development, validate with `omarchy plugin validate .`, then place or 
 
 ## Refresh and recovery
 
-Refresh runs at startup, every fifteen minutes, after UTC midnight, and from the popup's **Refresh** button. Period switching uses cached data. The bar displays `—` for an unknown count and `0` for a successful zero. Today remains incomplete until the next UTC midnight.
+Refresh runs at startup, every fifteen minutes, after local midnight, and from the popup's **Refresh** button. Period switching uses cached data. The bar displays `—` for an unknown count and `0` for a successful zero. Today remains incomplete until the next local midnight.
 
 The footer describes the visible section (Activity, PRs or Issues) with a relative update time; hover or focus it for exact local timestamps for every section. Repository freshness remains independent of Activity. Initial loading, refreshing saved work, and showing saved work after failure have distinct messages. Transient failures retain previous complete sections, marked stale with their original timestamps. An interrupted repository scan never publishes partial totals. Authentication loss or an observed account change clears prior-account data. Manual refresh respects rate-limit waits too.
 

@@ -3,12 +3,13 @@ import QtQuick
 import QtQuick.Controls as Controls
 import qs.Commons
 import qs.Commons as Commons
+import "ServiceModel.js" as Model
 
 FocusScope {
     id: root
     required property var periodStats
     required property string period
-    property string today: new Date().toISOString().slice(0, 10)
+    property string today: Model.localDate(Date.now())
     readonly property var layout: periodStats ? periodStats.layout : null
     readonly property bool annual: period === "year"
     readonly property real gap: Style.space(4)
@@ -230,7 +231,7 @@ FocusScope {
                     Accessible.ignored: modelData === null
                     Accessible.role: Accessible.StaticText
                     Accessible.name: modelData ? modelData.date + ": " + modelData.contributionCount + " contributions"
-                        + (modelData.date === root.today ? " · Today (UTC; incomplete)" : "") : ""
+                        + (modelData.date === root.today ? " · Today (incomplete)" : "") : ""
                     onActiveFocusChanged: if (activeFocus && modelData) {
                         root.entryDate = modelData.date
                         root.daySelected(modelData.date)

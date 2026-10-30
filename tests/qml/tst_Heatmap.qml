@@ -187,6 +187,18 @@ Item {
             verify(!findChild(todayTile, "today-marker").visible)
         }
 
+        function test_today_marker_uses_local_date() {
+            var now = new Date(2026, 9, 30, 9, 0, 0).getTime()
+            chart.today = Model.localDate(now)
+            showPeriod("week", "2026-10-24", 7)
+            var todayTile = findChild(chart, "contribution-2026-10-30")
+            verify(findChild(todayTile, "today-marker").visible)
+            verify(!findChild(findChild(chart, "contribution-2026-10-29"), "today-marker").visible)
+            verify(todayTile.Accessible.name.indexOf("Today (incomplete)") >= 0)
+            todayTile.forceActiveFocus()
+            compare(findChild(todayTile, "contribution-tooltip").text, todayTile.Accessible.name)
+        }
+
         function test_annual_weekdays_stay_fixed_and_latest_preserves_focus() {
             showPeriod("year", "2025-10-26", 365)
             var sunday = findChild(chart, "calendar-weekday-Sun")

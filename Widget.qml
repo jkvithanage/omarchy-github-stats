@@ -4,6 +4,7 @@ import QtQuick.Controls as Controls
 import qs.Ui
 import qs.Commons
 import qs.Commons as Commons
+import "ServiceModel.js" as Model
 
 BarWidget {
     id: root
@@ -21,7 +22,6 @@ BarWidget {
     readonly property string countText: service && service.todayCount !== null ? String(service.todayCount) : "—"
     readonly property string description: "GitHub: " + (countText === "—" ? "today's contributions unavailable" : countText + " contributions today")
 
-    readonly property string calendarExplanation: "Dates and daily totals follow GitHub’s contribution calendar using UTC dates. Today is incomplete. Update times use your local timezone."
     readonly property string repositoryExplanation: "Current snapshot of personally owned public and accessible private repositories, excluding forks and including archived repositories. Independent of the selected period."
     readonly property bool statusNeedsAttention: !service || service.refreshing || service.errorKind !== "" || !service.stats || service.todayCount === null
     readonly property string activeSectionName: ["Activity", "PRs", "Issues"][tabIndex]
@@ -202,8 +202,7 @@ BarWidget {
                         width: parent.width
                         spacing: Style.space(4)
                         Text {
-                            width: parent.width - calendarInfo.width - parent.spacing
-                                - (activityStale.visible ? activityStale.width + parent.spacing : 0)
+                            width: parent.width - (activityStale.visible ? activityStale.width + parent.spacing : 0)
                             text: ["Last 7 days", "Last 30 days", "Last 12 months"][root.periodIndex]
                                 + (root.selectedStats ? " · " + root.selectedStats.from.slice(0, 10) + " – " + root.selectedStats.to.slice(0, 10) : " · Activity unavailable")
                             color: Commons.Color.foreground
@@ -220,16 +219,6 @@ BarWidget {
                             tooltipText: "Activity updated: " + (root.service ? root.sectionFreshness({ lastSuccess: root.service.lastSuccess, stale: root.service.stale }) : "not loaded")
                             onActiveFocusChanged: if (activeFocus) root.revealPopupItem(activityStale)
                         }
-                        InfoText {
-                            id: calendarInfo
-                            objectName: "calendar-info"
-                            width: Style.space(28)
-                            text: ""
-                            horizontalAlignment: Text.AlignHCenter
-                            tooltipText: root.calendarExplanation
-                            Accessible.name: "About contribution dates"
-                            onActiveFocusChanged: if (activeFocus) root.revealPopupItem(calendarInfo)
-                        }
                     }
 
                     Heatmap {
@@ -237,7 +226,7 @@ BarWidget {
                         width: parent.width
                         periodStats: root.selectedStats
                         period: root.period
-                        today: new Date(root.service ? root.service.now : Date.now()).toISOString().slice(0, 10)
+                        today: Model.localDate(root.service ? root.service.now : Date.now())
                         onTileFocused: function(tile) { root.revealPopupItem(tile) }
                     }
 

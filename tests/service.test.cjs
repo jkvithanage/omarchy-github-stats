@@ -3,6 +3,9 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 
+// Baseline fixtures use UTC; timezone regression cases override and restore it.
+process.env.TZ = 'UTC';
+
 const model = vm.createContext({});
 vm.runInContext(readFileSync('ServiceModel.js', 'utf8'), model);
 const instant = Date.parse('2026-10-25T09:00:00Z');
@@ -658,4 +661,66 @@ test('issue states reject PRs and unsafe links, preserve stale results and isola
     assert.equal(service.issues.data, null);
     assert.equal(service.prs.data, null);
     assert.equal(service.identity, null);
+});
+
+test('local dates, query offsets and midnight rollover agree across timezones and DST', () => {
+    const originalTimezone = process.env.TZ;
+    try {
+        for (const [timezone, beforeText, afterText, today, weekFrom, monthFrom, yearFrom] of [
+            ['Australia/Melbourne', '2026-10-29T23:59:59+11:00', '2026-10-30T00:00:01+11:00', '2026-10-30',
+                '2026-10-24T00:00:00.000+11:00', '2026-10-01T00:00:00.000+10:00', '2025-10-31T00:00:00.000+11:00'],
+            ['America/Los_Angeles', '2026-10-29T23:59:59-07:00', '2026-10-30T00:00:01-07:00', '2026-10-30',
+                '2026-10-24T00:00:00.000-07:00', '2026-10-01T00:00:00.000-07:00', '2025-10-31T00:00:00.000-07:00'],
+            ['Australia/Melbourne', '2026-10-04T23:59:59+11:00', '2026-10-05T00:00:01+11:00', '2026-10-05',
+                '2026-09-29T00:00:00.000+10:00', '2026-09-06T00:00:00.000+10:00', '2025-10-06T00:00:00.000+11:00'],
+            ['America/Los_Angeles', '2026-11-01T23:59:59-08:00', '2026-11-02T00:00:01-08:00', '2026-11-02',
+                '2026-10-27T00:00:00.000-07:00', '2026-10-04T00:00:00.000-07:00', '2025-11-03T00:00:00.000-08:00'],
+            ['Asia/Kathmandu', '2026-10-29T23:59:59+05:45', '2026-10-30T00:00:01+05:45', '2026-10-30',
+                '2026-10-24T00:00:00.000+05:45', '2026-10-01T00:00:00.000+05:45', '2025-10-31T00:00:00.000+05:45']
+        ]) {
+            process.env.TZ = timezone;
+            const before = Date.parse(beforeText);
+            const after = Date.parse(afterText);
+            const service = new model.Service(before);
+            const yesterday = beforeText.slice(0, 10);
+            // Fixtures use the requested calendar date, just as GitHub does for offset-bearing bounds.
+            const localCalendar = date => calendar(alice,
+                [{ date, contributionCount: 8, contributionLevel: 'SECOND_QUARTILE' }], Date.parse(date + 'T12:00:00Z'));
+            let request = service.refresh(before);
+            let next = service.complete(request.id, response({ viewer: alice }), before);
+            finishCalendar(service, next, localCalendar(yesterday), before);
+            assert.equal(service.todayCount(before), 8, timezone);
+            request = service.refresh(before);
+            next = service.complete(request.id, response({ viewer: alice }), before);
+            assert.equal(service.tick(after), null);
+            assert.equal(service.todayCount(after), null, 'Do not reuse yesterday at local midnight: ' + timezone);
+            request = finishCalendar(service, next, localCalendar(yesterday), after);
+            assert.equal(request.kind, 'identity', 'Queue a local rollover refresh: ' + timezone);
+            next = service.complete(request.id, response({ viewer: alice }), after);
+            assert.ok(next.command.includes('weekFrom=' + weekFrom), timezone);
+            assert.ok(next.command.includes('monthFrom=' + monthFrom), timezone);
+            assert.ok(next.command.includes('from=' + yearFrom), timezone);
+            assert.ok(next.command.includes('to=' + afterText.replace(/(T\d\d:\d\d:\d\d)([+-])/, '$1.000$2')), timezone);
+            finishCalendar(service, next, localCalendar(today), after);
+            assert.equal(service.todayCount(after), 8, timezone);
+            for (const [key, count] of [['week', 7], ['month', 30], ['year', 365]]) {
+                const period = service.stats.periods[key];
+                assert.equal(period.days.length, count, timezone + ' ' + key);
+                assert.equal(period.days.at(-1).date, today, timezone + ' ' + key);
+                assert.equal(period.contributions, 8);
+                assert.equal(period.from.slice(0, 10), { week: weekFrom, month: monthFrom, year: yearFrom }[key].slice(0, 10));
+                assert.equal(period.to.slice(0, 10), today);
+                assert.equal(new Set(Array.from(period.days, day => day.date)).size, count);
+                assert.equal(period.days.at(-1).contributionLevel, 'SECOND_QUARTILE');
+            }
+            // UTC midnight is not a local rollover and must not cause an extra request.
+            const utcMidnight = Date.parse('2026-10-30T00:00:00Z');
+            const quiet = new model.Service(utcMidnight - 1000);
+            quiet.nextRefresh = utcMidnight + 60000;
+            assert.equal(quiet.tick(utcMidnight + 1000), null, timezone);
+        }
+    } finally {
+        if (originalTimezone === undefined) delete process.env.TZ;
+        else process.env.TZ = originalTimezone;
+    }
 });

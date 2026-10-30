@@ -5,6 +5,17 @@ import "../../ServiceModel.js" as Model
 TestCase {
     name: "ServiceModelQmlRuntime"
 
+    function test_localCalendarBounds() {
+        var now = new Date(2026, 9, 30, 9, 0, 0).getTime()
+        compare(Model.localDate(now), "2026-10-30")
+        compare(Model.localTimestamp(now).slice(0, 23), "2026-10-30T09:00:00.000")
+        compare(Date.parse(Model.localTimestamp(now)), now)
+        compare(Model.periodStart(now, 7).slice(0, 23), "2026-10-24T00:00:00.000")
+        compare(Model.periodStart(now, 30).slice(0, 23), "2026-10-01T00:00:00.000")
+        compare(Model.annualStart(now).slice(0, 23), "2025-10-31T00:00:00.000")
+        compare(Model.annualStart(new Date(2024, 1, 29, 9).getTime()).slice(0, 10), "2023-03-01")
+    }
+
     function test_calendarRefresh() {
         var now = Date.parse("2026-10-25T09:00:00Z")
         var service = new Model.Service(now)
