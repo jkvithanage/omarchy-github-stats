@@ -47,3 +47,28 @@ _Avoid_: Stars given, period stars
 **Repository languages**:
 The distribution of GitHub-reported language bytes across the repository scope. It describes repository contents rather than coding time, expertise, or language use during the selected period.
 _Avoid_: Most used languages, coding time
+
+**Notification**:
+A GitHub notification thread for the signed-in account, about activity on a subject such as a PR, issue, release, discussion, or CI run.
+_Avoid_: Alert, message
+
+**Inbox**:
+The account's notifications that are not marked done, both unread and read.
+_Avoid_: Feed, notification list
+
+**Unread notification**:
+A notification with activity the account has not yet viewed. Opening it makes it read; it stays in the Inbox until marked done.
+
+**Done**:
+The state of a notification removed from the Inbox. It returns when its thread has new activity.
+_Avoid_: Dismiss, archive, delete, clear
+
+**Unsubscribe**:
+Stop notifications for a thread until the account comments on it or is mentioned. Notifications from watching the repository continue.
+_Avoid_: Mute, ignore
+
+**Subscribe**:
+Resume notifications for a thread.
+
+**Notification reason**:
+Why GitHub notified the account about a thread, such as a review request, a mention, or CI activity.

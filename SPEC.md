@@ -1,6 +1,6 @@
-# Omarchy GitHub Stats — v1 specification
+# Omarchy GitHub Stats — specification
 
-Status: agreed design; v1 features and verification documentation are complete. Installation guidance, automated evidence, and maintainer-confirmed desktop checks are recorded in [the verification report](docs/verification.md), including remaining screen-reader, multi-monitor, and clean-install verification limits.
+Status: v1 features and verification documentation are complete. The v2 notifications **Inbox** is an agreed design that is not yet implemented ([#35](https://github.com/jkvithanage/omarchy-github-stats/issues/35)). Installation guidance, automated evidence, and maintainer-confirmed desktop checks are recorded in [the verification report](docs/verification.md), including remaining screen-reader, multi-monitor, and clean-install verification limits.
 
 ## Purpose and boundaries
 
@@ -8,13 +8,14 @@ Build a public Omarchy plugin that makes personal GitHub activity visible from t
 
 The project and repository name are **Omarchy GitHub Stats** and **`omarchy-github-stats`**. V1 targets Omarchy 4's native Quickshell bar, initially verified against Omarchy 4.0.6. It uses one effective `github.com` account through GitHub CLI (`gh`), including private data the effective credentials permit it to access.
 
-V1 is read-only. It does not create, edit, merge, close, assign, or otherwise mutate GitHub resources. It does not include account switching, other Git hosts, historical year selection, notification inboxes, or an in-widget replacement for GitHub's full work lists.
+V1 is read-only. V2 adds the notifications Inbox, whose notification actions are the only GitHub mutations: marking read, Done, Unsubscribe, and Subscribe ([ADR 0002](docs/adr/0002-notification-inbox-mutations.md)). The plugin does not create, edit, merge, close, assign, or otherwise mutate PRs, issues, repositories, or other GitHub resources. It does not include account switching, other Git hosts, historical year selection, saved notifications, or an in-widget replacement for GitHub's full work lists or notification views.
 
 ## Bar and popup
 
 - Show a GitHub icon and today's contribution count in the bar. Today follows the GitHub contribution calendar's UTC date boundary.
+- Show an unread dot beside the count while the Inbox's unread count is known and above zero. Its accessible name and tooltip give the exact unread count.
 - Clicking the widget toggles an anchored native Omarchy popup.
-- Provide exactly three primary tabs: **Stats**, **PRs**, and **Issues**.
+- Provide exactly four primary tabs: **Stats**, **PRs**, **Issues**, and **Inbox**.
 - Each popup opening starts on Stats with **7 days** selected. Switching away from Stats and back during that opening retains the selected period.
 - Use Omarchy's theme colors, typography, popup positioning, screen fitting, and dismissal behavior.
 - Keep content usable on smaller screens through constrained layout and scrolling where needed.
@@ -95,6 +96,27 @@ Completed empty categories explicitly name authored PRs, pending review requests
 
 PRs and Issues tab counts sum their disjoint category API totals, not preview lengths. Abbreviate large counts only in visible labels and retain exact totals in accessible names and tooltips. Distinguish unknown totals from successful zero and mark retained stale totals. Counts may sit below tab labels under narrow screen caps. Each work tab summarizes its secondary category explicitly as review requests or assignments from other authors, preserving authored-first grouping and overlap badges without new API requests.
 
+## Inbox
+
+The Inbox tab lists the account's notifications not marked done, read and unread, newest first, with unread notifications emphasized. Load the fifty most recent notifications in one page and provide a **View all** link to `https://github.com/notifications`. Saved and Done views, mark-as-unread, filters, grouping, and saving notifications stay on github.com; GitHub's API does not expose saving.
+
+### Rows
+
+- Each row shows an unread marker, the subject type (PR, issue, release, discussion, CI, or other), a linked title, the repository and number where applicable, the notification reason, and a relative update time with the exact local time on hover/focus and in accessible descriptions.
+- Opening a title opens the subject's web page and marks the notification read. PRs, issues, releases, and discussions open their github.com pages; CI notifications open the repository's Actions page; other subjects fall back to the repository page.
+- Each row has always-visible, keyboard-operable **Done** and **Unsubscribe** actions with tooltips and accessible names. After Unsubscribe, the row offers **Subscribe** to reverse it, based on actions taken in the current session. Do not offer Ignore.
+- Include CI notifications like other subjects.
+
+### Selection and bulk actions
+
+Every row has a checkbox, and a header checkbox selects all visible rows. While any row is selected, an action bar shows the selected count with **Done** and **Unsubscribe**. Bulk actions apply to selected visible rows only, issue one request per notification with bounded concurrency, and report failures per row.
+
+### Applying actions
+
+Apply Done, Unsubscribe, Subscribe, and mark-read immediately without confirmation. A failed request restores only the affected row and identifies the failure on it. A refresh that arrives while an action is pending must not restore a row the action removed. Done cannot be undone; GitHub returns the notification to the Inbox on new thread activity.
+
+The Inbox follows the work lists' empty, initial-loading, refreshing-saved-data, failed, and footer-freshness patterns.
+
 ## Architecture and data ownership
 
 Use QML/JavaScript and Omarchy's existing popup and theme components. No web server, Electron runtime, database, or custom credential service is required.
@@ -111,11 +133,14 @@ Use GitHub GraphQL for the contribution calendar, period summaries, repository d
 
 Only preview ten rows per category; full-list pagination belongs to the browser in v1. Respect API limits and do not confuse the search retrieval cap with a complete downloadable result set. Repository aggregates, unlike work previews, require complete pagination.
 
-Selectively reuse suitable native grid or panel code from [omarchy-ghstats](https://github.com/srineshr1/omarchy-ghstats). Preserve its MIT copyright and permission notice for copied substantial code. Do not import its notification mutations or add its helper dependencies merely to reuse the grid.
+Use the GitHub REST notifications API for the Inbox and its actions; GraphQL does not expose notifications. Notification requests use the same `gh api` argument-array, identity-isolation, error-classification, and rate-limit rules as other requests. Validate thread identifiers before placing them in request paths. Notification polling and actions run independently of the sequential activity refresh so neither blocks or reorders the other. These endpoints require a classic or OAuth token with `notifications` or `repo` scope; fine-grained personal access tokens are unsupported.
+
+Selectively reuse suitable native grid or panel code from [omarchy-ghstats](https://github.com/srineshr1/omarchy-ghstats). Preserve its MIT copyright and permission notice for copied substantial code. Do not import its notification code or add its helper dependencies merely to reuse the grid.
 
 ## Refresh and failure behavior
 
 - Fetch at service startup, every fifteen minutes, on manual Refresh, and after a UTC day rollover.
+- Poll the Inbox at service startup, on manual Refresh, and at the interval GitHub's `X-Poll-Interval` requests (at least sixty seconds). Send `If-Modified-Since` with the last `Last-Modified` value; treat a `304 Not Modified` response as current data, not a failure.
 - Fetch all three periods' summaries with the calendar so changing periods does not require a new network request after a successful refresh.
 - Coalesce overlapping refresh triggers. Use bounded asynchronous requests so a stalled process cannot leave refreshing active indefinitely.
 - Keep data only in memory; do not persist private account data to disk.
@@ -137,6 +162,7 @@ Implementation is complete when the following are demonstrated:
 5. Missing `gh`, authentication loss, account changes, partial failures, timeout, rate limiting, empty data, and stale refreshes produce honest states without leaking prior-account data or replacing failures with zeros.
 6. Multiple monitor widgets use one refresh service. Overlapping refreshes do not launch duplicate work or allow older results to overwrite newer data.
 7. A manual native-shell check covers keyboard access, focus, hover/focus tile details, Escape/outside-click dismissal, small-screen fitting, and live theme changes.
+8. Inbox fixtures demonstrate unread and read rows, link mapping including CI notifications, mark-read on open, per-row and bulk Done/Unsubscribe/Subscribe, per-row rollback on partial failure, a refresh racing a pending action, `304` polling, poll-interval and rate-limit handling, and clearing on account change.
 
 Use focused fixture-based tests for model and service behavior, QML linting, the Omarchy plugin manifest validator, and a native-shell smoke test. The installed environment provides Qt's `qmllint` and `qmltestrunner` under `/usr/lib/qt6/bin`; verify tool and import paths during implementation.
 
@@ -151,3 +177,5 @@ Use focused fixture-based tests for model and service behavior, QML linting, the
 - [GitHub contribution timestamps](https://docs.github.com/en/account-and-profile/reference/profile-contributions-reference)
 - [GitHub issue and PR search filters](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)
 - [GitHub GraphQL pagination](https://docs.github.com/en/graphql/guides/using-pagination-in-the-graphql-api)
+- [Notification Inbox decision](docs/adr/0002-notification-inbox-mutations.md)
+- [GitHub REST notifications](https://docs.github.com/en/rest/activity/notifications)
