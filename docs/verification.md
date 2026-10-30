@@ -2,6 +2,12 @@
 
 This record distinguishes automated native checks, maintainer-reported physical checks, and the remaining unverified items below.
 
+## Local contribution dates — 2026-10-30
+
+The service previously serialized all query bounds in UTC, causing Melbourne's October 30 morning to display October 29. Queries now preserve the local offset, and the bar count, selected-period ranges, Today marker and rollover use the local date. Range iteration uses calendar dates across daylight-saving changes. Local time is implicit in the interface: today's tooltip says ‘Today (incomplete)’ and the redundant calendar info icon is removed. Project documentation records the date-boundary behavior.
+
+The service regression first failed because yesterday's count remained visible after local midnight. It now passes for Melbourne, Los Angeles and Kathmandu, including positive, negative and fractional offsets and both daylight-saving transitions. Read-only GitHub queries confirmed that offset-bearing bounds return October 30 while UTC bounds return October 29 at the same instant, and that the annual Melbourne range contains 365 dates ending October 30. `make check` passes with 25 service tests and 27 Qt cases; existing dynamic host/theme lint warnings remain. The Qt service runtime also passes with `TZ=America/Los_Angeles`. All six native `make smoke` modes pass, including the absence of the redundant calendar info control. Native checks require Wayland access; the sandboxed attempt could not connect to the compositor. After removing the info control, one run lost popup focus during the stale-data scenario; the full repeat passed all six modes.
+
 ## Recovery and empty states — 2026-10-29 (#25)
 
 Authentication guidance copies only the fixed login command through Qt's clipboard support, with visible and politely announced confirmation reset on hiding/error changes. Rate limits show remaining wait and exact local retry time, using the existing service clock/deadline; manual Refresh eligibility is unchanged. Permission and incomplete-response messages include next steps. Completed empty work categories have role-specific wording and remain hidden during refresh or stale/failure states.
@@ -14,7 +20,7 @@ Automated PR review caught long empty messages clipping at narrow widths. A nati
 
 ## Heatmap orientation — 2026-10-29 (#24)
 
-Today's UTC date has an underline below its intensity tile and accessible incomplete-day details. A shared color mapping drives tiles and the Less-to-More legend. Annual weekdays occupy a stationary gutter; Latest reveals newest dates without a request or focus change. The new QML regressions first failed for missing today/legend and fixed-weekday behavior. Tests exercise rollover, distinct focus/Today indicators, legend colors, fixed labels, newest-date navigation and preserved focus. Native tests verify Latest's focus and unchanged request serial while retaining original sizing, narrow caps, month labels and refresh/browsing behavior. Physical screen-reader and screen-edge limits remain unchanged.
+Today's local date has an underline below its intensity tile and accessible incomplete-day details. A shared color mapping drives tiles and the Less-to-More legend. Annual weekdays occupy a stationary gutter; Latest reveals newest dates without a request or focus change. The new QML regressions first failed for missing today/legend and fixed-weekday behavior. Tests exercise rollover, distinct focus/Today indicators, legend colors, fixed labels, newest-date navigation and preserved focus. Native tests verify Latest's focus and unchanged request serial while retaining original sizing, narrow caps, month labels and refresh/browsing behavior. Physical screen-reader and screen-edge limits remain unchanged.
 
 Integrated with #23, `make check` passes (23 service fixtures, 21 Qt cases, lint/manifest; existing host/theme warnings remain), and all six regular `make smoke` modes pass. Fixture renders in `/tmp/stats-24-captures` were inspected for the annual gutter, today underline, legend, Latest and stale guidance. Optional capture runs intermittently lose popup focus/visibility during asynchronous capture; they are not treated as completed verification runs. The regular non-capture native suite is the verification gate. The harness waits for native dismissal animations to finish before reopening; focused tiles retain their Tab flag until focus transfers, avoiding a transient Qt warning.
 
@@ -70,7 +76,7 @@ The native harness imports the real installed `qs.Ui` and `qs.Commons` component
 | Manual Refresh control | Native harness activates the actual Refresh button, waits for a new complete refresh, and checks updated data. Passed. |
 | Failed follow-up refresh | Native `stale` mode first loads all sections, then fails the next refresh. Data and each section's original timestamp remain, with stale flags. Passed. |
 | Authentication/network/rate limit/timeout | Native failure modes show unavailable data honestly; the timeout kills an actual stalled process after thirty seconds. Fixtures also cover nonfunctional `gh`, permission errors, retry guidance, and manual-trigger backoff. Passed. |
-| UTC/account/concurrency invariants | Fixtures cover midnight/month/year/leap transitions, common chart/summary bounds, zero dates, stable levels, account changes/auth loss, old-result rejection, coalescing, and section freshness. Passed. |
+| Calendar/account/concurrency invariants | Fixtures cover local midnight, positive/negative/fractional timezone offsets, daylight-saving changes, month/year/leap transitions, common chart/summary bounds, zero dates, stable levels, account changes/auth loss, old-result rejection, coalescing, and section freshness. Passed. |
 | Theme and accessibility mechanics | Native theme bindings change live, focusable controls expose labels, focused details remain available in a bounded tooltip, and focus scrolls work links into view. Offscreen tests send arrow keys through all heatmap layouts. Passed. |
 | Escape/native dismissal callback | Native Escape shortcut and the host owner's dismissal callback are exercised. Passed; this does not establish physical pointer outside-click behavior. |
 
@@ -82,7 +88,7 @@ All six native modes passed: `success`, `stale`, `auth`, `network`, `rate`, `han
 
 ### Follow-up on 2026-10-27
 
-An isolated popup using the unchanged production widget and fixture account data was inspected on the native compositor. Its seven UTC dates, visible counts, activity summaries, repository snapshots, layout, and focus outline rendered visibly. Native virtual-pointer movement over the first tile selected `2026-10-20` in the date-detail state. This adds visual and hover-path evidence; it does not establish physical keyboard or pointer-button behavior.
+An isolated popup using the unchanged production widget and fixture account data was inspected on the native compositor. Its seven contribution dates, visible counts, activity summaries, repository snapshots, layout, and focus outline rendered visibly. Native virtual-pointer movement over the first tile selected `2026-10-20` in the date-detail state. This adds visual and hover-path evidence; it does not establish physical keyboard or pointer-button behavior.
 
 Injected keyboard and click events did not reliably activate the fixture controls. A temporary focus-capture experiment also failed to establish a valid grabbing popup, so it was discarded without changing production code. These probe results do not establish a widget defect or a passed keyboard/dismissal check. The available computer-use interface exposes browser tabs but no native desktop apps, so the remaining physical-input checks still require desktop observations. Temporary probes were stopped and desktop-region captures removed.
 
@@ -106,7 +112,7 @@ Tickets #2–#7 introduce no copied upstream implementation or helper dependenci
 
 ## Appearance cleanup — 2026-10-28 (#17)
 
-Specification: [#17](https://github.com/jkvithanage/omarchy-github-stats/issues/17). This follow-up changes presentation only; `Service.qml`, `ServiceModel.js`, the GitHub queries, and the glossary's UTC calendar definition are unchanged.
+Specification: [#17](https://github.com/jkvithanage/omarchy-github-stats/issues/17). This follow-up changes presentation only; `Service.qml`, `ServiceModel.js`, and the GitHub queries were unchanged by that follow-up.
 
 `make check` passed: all 23 service/model fixtures, 9 Qt test cases including setup/cleanup (4 heatmap behavior cases and the service runtime case), QML lint, and manifest validation. Lint still reports dynamic host/theme-property warnings; it is not warning-free. `git diff --check` passed.
 
@@ -118,7 +124,7 @@ Specification: [#17](https://github.com/jkvithanage/omarchy-github-stats/issues/
 | Compact short heatmaps | Qt tests verify weekday/date labels omit counts in both periods, with full date/count in hover and focus tooltips and accessible names. Arrow navigation and padding exclusion pass. |
 | Annual fit and responsive width | Native annual Stats fits the actual calendar columns plus weekday gutter and popup insets. Work tabs return to normal width. The capped 220×160 popup scrolls; annual overflow initially shows newest dates. Qt tests check 10-unit squares, 3-unit gaps, full-width fit, period entry, and non-overlapping visible month labels. Labels without enough room in a partial edge month are omitted. |
 | Preserve browsing and reveal focus | Qt snapshot replacement and real successful/failed native refreshes retain the browsed annual offset. Native focus reveals oldest and newest dates under the narrow cap; Qt tests send arrows across annual columns/rows. |
-| Stats and explanations | Native assertions check the compact metric values, precise contribution/authorship names, UTC calendar accessible explanation, current stars, language percentages and byte explanations. Supplemental InfoText explanations support both hover and focus. |
+| Stats and explanations | Native assertions check the compact metric values, precise contribution/authorship names, current stars, language percentages and byte explanations. Supplemental InfoText explanations support both hover and focus. |
 | Work presentation and links | Both native tabs retain correct item/View all URLs, draft/private/overlapping-role names and external-link affordances. A separate two-row probe verifies `2 of 42 shown`, an item separator, and a stale work timestamp. |
 | Independent freshness and errors | A repository-only stale probe leaves Activity fresh and displays its own stale timestamp. Failed manual refresh retains every section's data/timestamp and visible stale/failure guidance; successful refresh hides redundant healthy status. Authentication/network/rate/timeout modes still pass. |
 

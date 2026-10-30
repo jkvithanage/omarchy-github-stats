@@ -389,7 +389,7 @@ ShellRoot {
                     || !textItem(scrollContent, "Commits: 3") || !textItem(scrollContent, "PRs: 2")
                     || !textItem(scrollContent, "Issues: 1")
                     || namedItem(scrollContent, "metric-Commits").Accessible.name.indexOf("Commit contributions") < 0
-                    || namedItem(scrollContent, "calendar-info").Accessible.description.indexOf("UTC") < 0)
+                    || namedItem(scrollContent, "calendar-info") !== null)
                     throw new Error("Compact accessible seven-day Stats missing")
                 if (namedItem(scrollContent, "repository-stars").Accessible.name !== "Stars: 12" || !textItem(scrollContent, "JavaScript: 60.0%")
                     || namedItem(scrollContent, "language-JavaScript").Accessible.description.indexOf("60 GitHub-reported language bytes") < 0

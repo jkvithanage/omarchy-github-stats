@@ -16,7 +16,7 @@ _Avoid_: Commit chart
 The span shown in Stats: the last 7 days, 30 days, or 12 months, ending today. The chart and period activity summaries cover the same span.
 
 **Today**:
-The current UTC calendar date used for the widget's GitHub contribution view.
+The current calendar date in the user's local timezone, used for the widget's GitHub contribution view.
 
 **Commit contribution**:
 A commit GitHub counts as a contribution within the selected period. This is not a count of every commit in the user's local or accessible repositories.

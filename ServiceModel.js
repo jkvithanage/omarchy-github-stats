@@ -28,16 +28,30 @@ function workQuery(kind) {
 
 function utcDate(now) { return new Date(now).toISOString().slice(0, 10); }
 
+// Keep the offset: GitHub uses it to choose the contribution calendar's dates.
+function localTimestamp(now) {
+    var date = new Date(now);
+    var offset = date.getTimezoneOffset();
+    if (offset === 0) return date.toISOString();
+    var minutes = Math.abs(offset);
+    return new Date(date.getTime() - offset * 60000).toISOString().slice(0, -1)
+        + (offset < 0 ? "+" : "-") + ("0" + Math.floor(minutes / 60)).slice(-2)
+        + ":" + ("0" + minutes % 60).slice(-2);
+}
+
+function localDate(now) { return localTimestamp(now).slice(0, 10); }
+
 function annualStart(now) {
     var date = new Date(now);
-    var year = date.getUTCFullYear() - 1;
-    var month = date.getUTCMonth();
-    var day = Math.min(date.getUTCDate(), new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
-    return new Date(Date.UTC(year, month, day + 1)).toISOString();
+    var year = date.getFullYear() - 1;
+    var month = date.getMonth();
+    var day = Math.min(date.getDate(), new Date(year, month + 1, 0).getDate());
+    return localTimestamp(new Date(year, month, day + 1).getTime());
 }
 
 function periodStart(now, days) {
-    return new Date(Date.parse(utcDate(now) + "T00:00:00Z") - (days - 1) * 86400000).toISOString();
+    var date = new Date(now);
+    return localTimestamp(new Date(date.getFullYear(), date.getMonth(), date.getDate() - days + 1).getTime());
 }
 
 function command(query, fields) {
@@ -133,7 +147,9 @@ function periodStats(calendar, collection, from, to) {
         || !validCount(collection.restrictedContributionsCount)) return null;
     var days = [];
     var total = 0;
-    for (var date = Date.parse(from); date <= Date.parse(to); date += 86400000) {
+    // Iterate date-only keys, not elapsed local hours: DST days can be 23 or 25 hours.
+    for (var date = Date.parse(from.slice(0, 10) + "T00:00:00Z"),
+        end = Date.parse(to.slice(0, 10) + "T00:00:00Z"); date <= end; date += 86400000) {
         var day = calendar[utcDate(date)];
         if (!day) return null;
         days.push(day);
@@ -146,7 +162,7 @@ function periodStats(calendar, collection, from, to) {
 }
 
 function accountStats(calendar, user, at) {
-    var to = new Date(at).toISOString();
+    var to = localTimestamp(at);
     var periods = {
         week: periodStats(calendar, user.week, periodStart(at, 7), to),
         month: periodStats(calendar, user.month, periodStart(at, 30), to),
@@ -324,13 +340,13 @@ function Service(now) {
     this.retryAt = 0;
     this.active = null;
     this.serial = 0;
-    this.day = utcDate(now);
+    this.day = localDate(now);
     this.nextRefresh = now;
     this.rolloverPending = false;
 }
 
 Service.prototype.todayCount = function(now) {
-    var day = this.calendar && this.calendar[utcDate(now)];
+    var day = this.calendar && this.calendar[localDate(now)];
     return day ? day.contributionCount : null;
 };
 
@@ -415,7 +431,7 @@ Service.prototype.complete = function(id, result, now) {
             identity: this.identity,
             command: command(calendarQuery, { login: data.viewer.login, from: annualStart(request.at),
                 weekFrom: periodStart(request.at, 7), monthFrom: periodStart(request.at, 30),
-                to: new Date(request.at).toISOString() }) };
+                to: localTimestamp(request.at) }) };
         return this.active;
     }
     if (!sameIdentity(request.identity, data.viewer)
@@ -458,8 +474,8 @@ Service.prototype.complete = function(id, result, now) {
 };
 
 Service.prototype.tick = function(now) {
-    if (utcDate(now) !== this.day) {
-        this.day = utcDate(now);
+    if (localDate(now) !== this.day) {
+        this.day = localDate(now);
         this.nextRefresh = now;
         if (this.active) this.rolloverPending = true;
     }
@@ -482,6 +498,6 @@ Service.prototype.statusText = function(now) {
         return "GitHub rate limit reached. Retry after " + new Date(this.retryAt).toLocaleString() + ".";
     if (this.errorKind) return messages[this.errorKind];
     if (this.calendar && Object.keys(this.calendar).length === 0) return "GitHub returned no contribution dates.";
-    if (this.calendar && this.todayCount(now) === null) return "Today's UTC contribution count is unavailable until refreshed.";
+    if (this.calendar && this.todayCount(now) === null) return "Today's contribution count is unavailable until refreshed.";
     return this.lastSuccess > 0 ? "GitHub contributions loaded." : "Waiting for GitHub contributions.";
 };

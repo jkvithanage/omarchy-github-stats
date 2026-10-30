@@ -12,7 +12,7 @@ V1 is read-only. It does not create, edit, merge, close, assign, or otherwise mu
 
 ## Bar and popup
 
-- Show a GitHub icon and today's contribution count in the bar. Today follows the GitHub contribution calendar's UTC date boundary.
+- Show a GitHub icon and today's contribution count in the bar. Today follows the user's local date boundary.
 - Clicking the widget toggles an anchored native Omarchy popup.
 - Provide exactly three primary tabs: **Stats**, **PRs**, and **Issues**.
 - Each popup opening starts on Stats with **7 days** selected. Switching away from Stats and back during that opening retains the selected period.
@@ -24,7 +24,7 @@ V1 is read-only. It does not create, edit, merge, close, assign, or otherwise mu
 
 ### Periods and contribution heatmaps
 
-Offer **7 days**, **30 days**, and **12 months**. Each period ends today; today is an incomplete day until the next UTC midnight.
+Offer **7 days**, **30 days**, and **12 months**. Each period ends today; today is an incomplete day until the next local midnight.
 
 | Period | Layout | Date coverage |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ Offer **7 days**, **30 days**, and **12 months**. Each period ends today; today 
 
 Use Sunday-first weekday alignment for calendar grids. Pad incomplete weeks with empty layout slots, not zero-contribution dates. Show date labels appropriate to the scale, including month labels on the annual view.
 
-For the annual range, start at UTC midnight on the date immediately after the same date in the previous year; clamp February 29 to February 28 when finding that previous-year date. This produces 365 or 366 included dates. Query through the current instant, and use the same bounds for its summaries.
+For the annual range, start at local midnight on the date immediately after the same date in the previous year; clamp February 29 to February 28 when finding that previous-year date. This produces 365 or 366 included dates. Query through the current instant, and use the same bounds for its summaries.
 
 Fetch an annual contribution calendar and preserve its returned dates, counts, and contribution levels. Slice that calendar for shorter views so switching periods does not change a day's color intensity. Map levels to neutral and theme-accent shades; do not use the API's fixed colors over the active Omarchy theme.
 
@@ -42,7 +42,7 @@ Each tile exposes its full date and contribution count on hover or keyboard focu
 
 Each populated heatmap has one sequential Tab stop. First entry for a selected period focuses today when available, otherwise the latest available date. Arrow keys follow the chart arrangement, skip padding and stop at boundaries; Tab/Shift+Tab leave the chart. Re-entry remembers the browsed date, including across refreshes while it remains available. Missing/empty charts add no Tab stop; rollover or removed coverage falls back to the latest available date.
 
-Mark today's incomplete UTC date with an underline below its colored tile, distinct from the keyboard-focus border, and identify it in accessible details. Include a compact Less-to-More legend using the same relative contribution levels and theme colors, without fixed-count threshold claims. Annual weekday labels occupy a stationary gutter outside the scrolling dates/month labels. Provide a keyboard-accessible Latest action beneath the annual chart that reveals newest dates without fetching data or moving focus.
+Mark today's incomplete local date with an underline below its colored tile, distinct from the keyboard-focus border, and identify it in accessible details. Include a compact Less-to-More legend using the same relative contribution levels and theme colors, without fixed-count threshold claims. Annual weekday labels occupy a stationary gutter outside the scrolling dates/month labels. Provide a keyboard-accessible Latest action beneath the annual chart that reveals newest dates without fetching data or moving focus.
 
 ### Activity summaries
 
@@ -56,7 +56,7 @@ Do not repeat the contribution total as a peer-level supporting metric. Keep cur
 
 Use the corresponding GitHub contribution-collection fields for commit, PR, and issue summaries. Do not infer these from total calendar activity or from open work queues. In particular, PR and issue activity includes eligible creations that have since closed or merged.
 
-Use UTC midnight at the start of the selected range and the current instant as its bounds. Keep fetched chart data and summaries on a common refresh time. Do not present a failed or incomplete request as a zero.
+Use local midnight at the start of the selected range and the current instant as its bounds, preserving each timestamp's local timezone offset in GitHub queries. Iterate calendar dates rather than fixed 24-hour steps across daylight-saving changes. Keep fetched chart data and summaries on a common refresh time. Do not present a failed or incomplete request as a zero.
 
 ### Repository snapshots
 
@@ -115,12 +115,12 @@ Selectively reuse suitable native grid or panel code from [omarchy-ghstats](http
 
 ## Refresh and failure behavior
 
-- Fetch at service startup, every fifteen minutes, on manual Refresh, and after a UTC day rollover.
+- Fetch at service startup, every fifteen minutes, on manual Refresh, and after a local day rollover.
 - Fetch all three periods' summaries with the calendar so changing periods does not require a new network request after a successful refresh.
 - Coalesce overlapping refresh triggers. Use bounded asynchronous requests so a stalled process cannot leave refreshing active indefinitely.
 - Keep data only in memory; do not persist private account data to disk.
 - Show the time of the last successful update. Preserve previously successful sections on transient failure and identify them as stale. A section's failed refresh must not mark its old value as freshly updated.
-- When the cached calendar does not cover the new UTC date, do not relabel yesterday's count as today's. Request fresh data and show today's count as unavailable until known.
+- When the cached calendar does not cover the new local date, do not relabel yesterday's count as today's. Request fresh data and show today's count as unavailable until known.
 - Distinguish missing or nonfunctional `gh`, missing authentication, insufficient permissions, network failure, rate limiting, and valid empty results.
 - Give concise setup guidance for `gh auth login` when authentication is needed. Do not start an interactive login inside the shared shell process.
 - Respect GitHub's rate-limit reset or retry guidance and avoid tight automatic retries. Retain useful existing data while waiting.
@@ -131,7 +131,7 @@ Selectively reuse suitable native grid or panel code from [omarchy-ghstats](http
 Implementation is complete when the following are demonstrated:
 
 1. The manifest validates and the native bar widget loads on the target Omarchy shell with working popup, tabs, browser links, and refresh.
-2. All periods show the correct included dates and summaries. Verify UTC rollover, month/year transitions, leap dates, partial weeks, zero-activity days, and stable tile levels across period switches.
+2. All periods show the correct included dates and summaries. Verify local rollover, month/year transitions, leap dates, partial weeks, zero-activity days, and stable tile levels across period switches.
 3. Repository fixtures spanning multiple pages produce correct owner/fork filtering, star totals, language ranking, percentages, and Other. Interrupted pagination cannot publish a partial aggregate as complete.
 4. Work fixtures demonstrate authored, assigned, direct-review, and team-review coverage; deduplication; draft handling; ordering; ten-row previews; accurate category totals; and matching View all filters.
 5. Missing `gh`, authentication loss, account changes, partial failures, timeout, rate limiting, empty data, and stale refreshes produce honest states without leaking prior-account data or replacing failures with zeros.
