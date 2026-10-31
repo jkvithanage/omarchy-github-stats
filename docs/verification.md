@@ -16,7 +16,9 @@ A reversible lifecycle run backed up the original development symlink and shell 
 
 The native two-consumer harness verifies shared service data and coalescing. The installed host's service map and disable/remove destruction path were inspected; public IPC exposes discovery/enablement but no live service-instance count. No separate claim of measured live-instance counts is made.
 
-The marketplace's community-manifest validator and active/retired ID availability check pass at marketplace revision `c752dd16a2d6fbaab9bf8c3cc5834e27953e0183`. Full public-repository compatibility validation and its exact-commit security baseline remain gated on approval to make the repository public. Physical keyboard/pointer/browser confirmation for the current release is pending; actual screen-reader quality and two physical monitors remain unverified and are disclosed release limitations.
+The marketplace's community-manifest validator and active/retired ID availability check pass at marketplace revision `c752dd16a2d6fbaab9bf8c3cc5834e27953e0183`. Its baseline analysis also passed a local tracked-content preflight of 11 files at preparation commit `90aa781ff818fda3785dab3561b1ab4fc36c974f`, with no findings or elevated capabilities. This offline check is distinct from public snapshot validation. Full public-repository compatibility validation and its exact-commit security baseline remain gated on approval to make the repository public.
+
+After restoration of the development installation, the maintainer answered “Checked — those interactions work” to the current release checks for physical Tab/arrow navigation, visible focus, date tooltips, one browser link, Escape and outside-click dismissal. These are maintainer-reported observations, separate from automated evidence. Physical screen-edge placement and theme-change observations, interactive installation prompts, actual screen-reader quality and two physical monitors remain unverified; constrained layout and live theme bindings are covered by the native automated checks.
 
 ## Local contribution dates — 2026-10-30
 
