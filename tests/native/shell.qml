@@ -1,4 +1,5 @@
 import QtQuick
+import QtTest
 import Quickshell
 import qs.Ui
 import qs.Commons
@@ -22,6 +23,8 @@ ShellRoot {
     property var constrainedPopup: null
     property bool constrainPopup: false
     readonly property string mode: Quickshell.env("STATS_FIXTURE") || "success"
+
+    TestCase { id: layoutChecks; when: false }
 
     // Temporary bounds overrides restore the real production bindings after the narrow-screen probe.
     Binding {
@@ -182,6 +185,10 @@ ShellRoot {
 
     function check() {
         if (root.capturePending) return
+        // Positioners and Flickable geometry settle during Qt's polish pass.
+        // A timer tick alone does not establish that the new period is laid out.
+        if (root.stage >= 3 && first.popupOpen
+            && layoutChecks.isPolishScheduled(popupFor(first)._backingWindow)) return
         try {
             if (root.settledState) {
                 if (service.refreshing) throw new Error("Idle clock tick started an unexpected refresh")
@@ -606,6 +613,8 @@ ShellRoot {
                 var previousWeek = first.selectedStats.days[first.selectedStats.days.length - 8].date
                 namedItem(annualChart, "contribution-" + previousWeek).forceActiveFocus()
                 // Re-enter annual after constraining the card, so newest-first initialization runs.
+                // Real period activation moves focus out of the chart before its cells change.
+                textItem(popup.contentItem[0], "7 days").forceActiveFocus()
                 first.periodIndex = 0
                 root.constrainedPopup = popup
                 root.constrainPopup = true
