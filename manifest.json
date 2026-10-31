@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omarchy-github-stats",
   "name": "Omarchy GitHub Stats",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "jkvithanage",
   "description": "Today's GitHub contributions and personal activity in the native bar.",
   "kinds": ["bar-widget", "service"],
