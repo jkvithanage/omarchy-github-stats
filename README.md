@@ -2,11 +2,15 @@
 
 A native Omarchy bar plugin for personal GitHub contributions, pull requests, and issues. The bar shows a GitHub icon and today's contribution count; its popup has **Stats**, **PRs**, and **Issues** tabs.
 
+![GitHub Stats with synthetic fixture data](preview.png)
+
+The preview uses synthetic data, not a real GitHub account.
+
 ## Features and status
 
 PRs and Issues tabs show full open-work totals from their two disjoint categories, independent of the Stats period. Large counts use k/m abbreviations with exact totals in accessible names and tooltips. `—` means unavailable; `*` marks saved stale totals. Work tabs summarize review requests or assignments from other authors without double-counting authored overlaps. On narrow screens, counts move below their tab labels.
 
-V1 features and verification documentation are complete. See the [verification record](docs/verification.md) for tested versions, automated evidence, maintainer-confirmed desktop checks, and remaining screen-reader, multi-monitor, and clean-install verification limits.
+V1 features and verification documentation are complete. See the [verification record](docs/verification.md) for tested versions, automated and clean-install lifecycle evidence, maintainer-confirmed desktop checks, and remaining physical-input, screen-reader, multi-monitor, and interactive-install verification limits.
 
 - **Stats:** 7 days, 30 days, and 12 months, with Sunday-first contribution heatmaps, theme colors, hover/focus date and count details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Reopening resets to Stats and 7 days; switching tabs retains the period during that opening.
 
@@ -20,7 +24,7 @@ Stats leads with the selected-period contribution total, followed by its date ra
 
 ## Requirements
 
-- Omarchy 4's native Quickshell bar; verified against Omarchy **4.0.6-1** and Quickshell **0.3.2**.
+- Omarchy's native Quickshell bar (`omarchy.bar`); verified against Omarchy **4.0.6-1** and Quickshell **0.3.2**. Other host versions and replacement bars are not verified.
 - A working, authenticated GitHub CLI (`gh`) on the **running shell process's PATH**. Terminal aliases or interactive version-manager setup alone may not apply to that process.
 - One effective account on `github.com`. Other Git hosts and in-widget account switching are outside v1.
 
@@ -50,6 +54,22 @@ omarchy plugin list
 Use the native `omarchy.bar`. Replacement bars can withhold the companion service from third-party widgets. Normal git-managed installations can be updated with `omarchy plugin update omarchy-github-stats`; review the offered changes. Do not use that updater on a development checkout with uncommitted work.
 
 For local development, validate with `omarchy plugin validate .`, then place or symlink the checkout at `~/.config/omarchy/plugins/omarchy-github-stats` when that path is not already occupied. Run `omarchy shell shell rescanPlugins`, then enable it as above. Saved plugin code hot-reloads. The host owns one service; monitor widgets consume that service rather than fetching separately.
+
+## Disable or remove
+
+Disable the plugin while retaining its installation:
+
+```sh
+omarchy plugin disable omarchy-github-stats
+```
+
+Remove it, confirming the host's prompt:
+
+```sh
+omarchy plugin remove omarchy-github-stats
+```
+
+Removal unloads an enabled plugin. For a git-managed installation, it deletes the installed clone, including local edits; commit or copy any changes you want to keep first. For a development symlink, it unlinks the installation and leaves the checkout intact. GitHub CLI credentials remain managed by `gh`.
 
 ## Refresh and recovery
 
@@ -85,5 +105,10 @@ make smoke
 - [Specification](SPEC.md): agreed behavior and acceptance criteria.
 - [Glossary](GLOSSARY.md): domain definitions.
 - [Architecture decision](docs/adr/0001-native-omarchy-and-gh.md): native QML/Quickshell and GitHub CLI.
+- [Marketplace readiness](docs/marketplace.md): release evidence, publication gates, and submission draft.
+
+## License
+
+This project is available under the [MIT License](LICENSE).
 
 [omarchy-ghstats](https://github.com/srineshr1/omarchy-ghstats) is a contribution-grid reference. No upstream implementation was copied for tickets #2–#7. Any future substantial reuse must retain its MIT copyright and permission notice; notification mutations and helper dependencies are outside this plugin's scope.
