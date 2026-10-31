@@ -40,6 +40,8 @@ A limited credential-pattern review inspected 195 historical blobs among 386 rea
 
 Making the repository public also exposes commit author identities/emails, engineering discussions, local paths in historical documentation, and the open v2 Inbox design. Review those disclosures before approval. Existing CI runs fixture tests and does not fetch production account data. The preview contains only synthetic account `fixture` and aggregate fixture values.
 
+Public visibility also exposes GitHub Actions history and logs. The current release's physical keyboard, focus, tooltip, browser-link and dismissal checks were confirmed by the maintainer after restoration; the verification record distinguishes these observations from automated results and remaining limitations.
+
 ## Remaining publication gates
 
 1. Review the merged preparation changes and the disclosures above, then obtain owner approval to make this existing repository public.
