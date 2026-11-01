@@ -1,6 +1,6 @@
 # Marketplace release readiness
 
-Preparation is tracked in [#39](https://github.com/jkvithanage/omarchy-github-stats/issues/39). The repository remains private and no marketplace submission has been created. Public visibility and submission each require final owner approval.
+Publication is tracked in [#39](https://github.com/jkvithanage/omarchy-github-stats/issues/39). On 2026-11-01 the owner authorized publication and marketplace submission, the contributor documentation was merged through #42, and the repository was made public. Unauthenticated repository and manifest access passed. Exact-commit validation evidence and the external submission link are recorded on #39 so this submission snapshot can remain unchanged. The completed submission checklist still requires owner confirmation before the external issue is created.
 
 ## Release identity
 
@@ -10,18 +10,18 @@ V1 remains read-only and uses the native bar widget and one host-managed service
 
 ## Marketplace requirements
 
-Checked on 2026-10-31 against marketplace revision `c752dd16a2d6fbaab9bf8c3cc5834e27953e0183`:
+Requirements checked on 2026-10-31 and rechecked on 2026-11-01 against marketplace revision `f28756d38ca327d8f6ef4565017a316b1060c26f`; submission policy and validation scripts are unchanged from `c752dd16a2d6fbaab9bf8c3cc5834e27953e0183`:
 
 | Requirement | Evidence or remaining gate |
 | --- | --- |
-| Public, active GitHub repository | Private; awaiting owner approval to change visibility |
+| Public, active GitHub repository | Public; unauthenticated repository and manifest access verified on 2026-11-01 |
 | One root plugin manifest with supported kinds and safe entry points | Native validator and marketplace community-manifest validation pass |
 | Root README with installation, removal and dependency guidance | README includes all three |
 | Root license | MIT `LICENSE` |
 | Globally unique ID outside `omarchy.*` | `omarchy-github-stats` absent from active/retired IDs at the inspected marketplace revision; recheck before submission |
 | No symlinks inside the distributed plugin | Host validator checks this; the development installation's outer symlink is not distributed |
 | Optional root preview | `preview.png`, 592 × 664 pixels, captured from the unchanged widget using synthetic fixture data |
-| Exact-commit compatibility and security reports | Public-repository validation remains gated on visibility approval |
+| Exact-commit compatibility and security reports | Run against the final merged submission snapshot and record results on #39 |
 
 The marketplace accepts version `1.0.0` and combined `bar-widget`/`service` kinds. A namespaced ID is preferred but optional. Listing category **Developer Tools** and tags **bar**, **quickshell** are separate from the manifest's native-bar category **Development**.
 
@@ -42,11 +42,12 @@ Making the repository public also exposes commit author identities/emails, engin
 
 Public visibility also exposes GitHub Actions history and logs. The current release's physical keyboard, focus, tooltip, browser-link and dismissal checks were confirmed by the maintainer after restoration; the verification record distinguishes these observations from automated results and remaining limitations.
 
-## Remaining publication gates
+## Submission gates
 
-1. Review the merged preparation changes and the disclosures above, then obtain owner approval to make this existing repository public.
-2. Verify unauthenticated repository access and recheck the plugin ID against current active and retired IDs.
-3. From a checked marketplace checkout with Node 24+ and its locked dependencies installed, run its compatibility validator and security baseline against the submission commit:
+Public visibility is approved and unauthenticated access is verified. Before creating the marketplace issue:
+
+1. Recheck the plugin ID against current active and retired IDs.
+2. From a checked marketplace checkout with Node 24+ and its locked dependencies installed, run its compatibility validator and security baseline against the submission commit:
 
    ```sh
    VALIDATION_METADATA_PATH=/tmp/github-stats-validation.json \
@@ -58,7 +59,7 @@ Public visibility also exposes GitHub Actions history and logs. The current rele
    ```
 
    Confirm that the reported commit matches the intended current master. Inspect the baseline JSON outcome and findings; a successful process exit alone does not mean the baseline passed. Resolve blocking findings and disclose any findings requiring maintainer review. Repeat exact-commit checks if the submission code changes.
-4. Show the completed title and body below to the owner. Confirm every checklist statement and obtain explicit submission approval before creating an issue in `omacom/omarchy-plugin-marketplace`. Set all five boxes to checked only once every statement is true and confirmed.
+3. Show the completed title and body below to the owner. Confirm every checklist statement and obtain explicit submission approval before creating an issue in `omacom/omarchy-plugin-marketplace`. Set all five boxes to checked only once every statement is true and confirmed.
 
 Marketplace maintainers determine any `manual-setup` classification and apply `approved-and-verified` after reviewing the exact commit's reports. Later upstream commits need renewed snapshot verification; the Git tag does not grant marketplace verification.
 
@@ -66,7 +67,7 @@ Marketplace maintainers determine any `manual-setup` classification and apply `a
 
 Title: `[Plugin]: Omarchy GitHub Stats`
 
-The body is prepared below, with all confirmations left unchecked pending public validation and owner review:
+The body is prepared below, with all confirmations left unchecked pending final snapshot validation and owner checklist confirmation:
 
 ```markdown
 ### Repository URL
