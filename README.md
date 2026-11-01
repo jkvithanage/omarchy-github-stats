@@ -6,21 +6,14 @@ A native Omarchy bar plugin for personal GitHub contributions, pull requests, an
 
 The preview uses synthetic data, not a real GitHub account.
 
-## Features and status
+## Features
 
-PRs and Issues tabs show full open-work totals from their two disjoint categories, independent of the Stats period. Large counts use k/m abbreviations with exact totals in accessible names and tooltips. `—` means unavailable; `*` marks saved stale totals. Work tabs summarize review requests or assignments from other authors without double-counting authored overlaps. On narrow screens, counts move below their tab labels.
-
-V1 features and verification documentation are complete. See the [verification record](docs/verification.md) for tested versions, automated and clean-install lifecycle evidence, maintainer-confirmed desktop checks, and remaining physical-input, screen-reader, multi-monitor, and interactive-install verification limits.
-
-- **Stats:** 7 days, 30 days, and 12 months, with Sunday-first contribution heatmaps, theme colors, hover/focus date and count details, and separate contribution, commit contribution, authored PR, and authored issue summaries. The annual chart scrolls horizontally with month/year labels. Reopening resets to Stats and 7 days; switching tabs retains the period during that opening.
-
-Keyboard users enter a contribution heatmap with Tab, browse dates with arrow keys, and leave with Tab or Shift+Tab. A new period starts at the latest available date; re-entry remembers the focused date, and refreshes preserve it while it remains in the period. Padding is skipped and focused dates scroll into view.
-
-A small underline marks today's incomplete local date, independently of the keyboard-focus border. The Less-to-More legend follows GitHub's relative contribution levels. Annual weekday labels remain fixed while dates scroll; **Latest** returns to the newest dates without fetching data or moving focus.
-- **Current repository snapshots:** Stars and the top five Repository languages plus Other, from complete repository/language pagination. The scope is personally owned public and accessible private repositories, excluding forks and including archives. Language shares describe repository code bytes, independently of the Stats period.
-
-Stats leads with the selected-period contribution total, followed by its date range and heatmap. Commit contributions, authored PRs and authored issues remain supporting metrics; current Repository snapshots are visually secondary and independent of that period.
-- **Open work:** authored PRs, pending direct/team review requests from other authors, authored issues, and assignments from other authors. Each category has API totals, up to ten recently updated rows, role/private/draft labels where relevant, linked titles and View all browser links. Update times use relative labels for the last week and short local dates for older work; hover or focus the update label for the exact local timestamp. Bounded overlap lookups provide secondary-role badges on authored previews without adding to totals.
+- **Contribution activity:** 7-day, 30-day, and 12-month views with contribution heatmaps and separate commit contribution, authored PR, and authored issue summaries.
+- **Repository snapshots:** total stars and repository language shares across personally owned public and accessible private repositories, excluding forks.
+- **Open work:** authored PRs, direct/team review requests, authored issues, and assigned issues, with full category totals, recent previews, and browser links.
+- **Keyboard navigation:** Tab and arrow-key navigation, visible focus, and date/count tooltips for contribution heatmaps.
+- **Refresh and recovery:** automatic and manual refresh, saved results during transient failures, and guidance for authentication, network, and rate-limit errors.
+- **Native integration:** Omarchy theme colors, responsive layouts, and one host-managed service shared by monitor widgets.
 
 ## Requirements
 
@@ -52,8 +45,6 @@ omarchy plugin list
 ```
 
 Use the native `omarchy.bar`. Replacement bars can withhold the companion service from third-party widgets. Normal git-managed installations can be updated with `omarchy plugin update omarchy-github-stats`; review the offered changes. Do not use that updater on a development checkout with uncommitted work.
-
-For local development, validate with `omarchy plugin validate .`, then place or symlink the checkout at `~/.config/omarchy/plugins/omarchy-github-stats` when that path is not already occupied. Run `omarchy shell shell rescanPlugins`, then enable it as above. Saved plugin code hot-reloads. The host owns one service; monitor widgets consume that service rather than fetching separately.
 
 ## Disable or remove
 
@@ -91,6 +82,35 @@ GitHub requires the optional `read:user` scope for private/internal contribution
 
 ## Verification and development
 
+### Local development
+
+From the root of your local checkout, validate it and symlink it into the user plugin directory:
+
+```sh
+omarchy plugin validate . &&
+  mkdir -p "$HOME/.config/omarchy/plugins" &&
+  ln -sT "$(pwd -P)" "$HOME/.config/omarchy/plugins/omarchy-github-stats"
+```
+
+The destination must be unused; `ln -sT` refuses to replace an existing installation or create a nested link inside it. If you already installed the plugin, follow [Disable or remove](#disable-or-remove) first, preserving any local edits before removing a git-managed clone.
+
+After the symlink succeeds, rescan and enable the plugin:
+
+```sh
+omarchy shell shell rescanPlugins &&
+  omarchy plugin enable omarchy-github-stats --section right
+```
+
+Edit files in your checkout to develop against the running shell. Saved plugin code normally hot-reloads; to explicitly reload it, restart the shell:
+
+```sh
+omarchy restart shell
+```
+
+To stop using the development copy, use `omarchy plugin remove omarchy-github-stats`; it removes the symlink and leaves your checkout intact.
+
+### Checks
+
 ```sh
 make check
 make smoke
@@ -110,5 +130,3 @@ make smoke
 ## License
 
 This project is available under the [MIT License](LICENSE).
-
-[omarchy-ghstats](https://github.com/srineshr1/omarchy-ghstats) is a contribution-grid reference. No upstream implementation was copied for tickets #2–#7. Any future substantial reuse must retain its MIT copyright and permission notice; notification mutations and helper dependencies are outside this plugin's scope.
